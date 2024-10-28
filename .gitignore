@@ -1,0 +1,53 @@
+# IDE / Editors
+.vscode
+.idea
+*.sublime-project
+*.sublime-workspace
+
+
+# Configuration, secrets, etc:
+.env
+secrets.py
+secrets2.py
+data/*
+test/*
+*.vrt
+*.ipynb
+*.tif
+*.tif.aux.xml
+
+# Local data files
+pipeline/data
+pipeline/lib/flash_flood_model/flood_pipeline_stuff
+*.shp
+*.geojson
+*.log
+*.html
+!pipeline/data/README.md
+!pipeline/data/trigger_data
+
+# Generated files
+dist
+coverage
+.coverage
+
+
+# External code
+node_modules
+
+
+# Logs / Cache / temporary files
+logs
+*.log
+npm-debug.log*
+.npm
+
+# Secrets
+secrets
+pipeline/lib/flood_model/secrets.py
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

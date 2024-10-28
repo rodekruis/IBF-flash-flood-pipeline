@@ -1,0 +1,8 @@
+geopandas==0.12.1
+rasterio==1.2.0
+rasterstats==0.15.0
+requests==2.25.1
+plotly
+pygeos
+netCDF4
+rioxarray

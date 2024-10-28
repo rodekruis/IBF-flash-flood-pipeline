@@ -1,0 +1,37 @@
+# IDE / Editors
+.vscode
+.idea
+*.sublime-project
+*.sublime-workspace
+
+
+# Configuration, secrets, etc:
+.env
+
+
+# Local data files
+
+# Generated files
+dist
+coverage
+
+# External code
+node_modules
+
+ 
+
+# Logs / Cache / temporary files
+logs
+*.log
+npm-debug.log*
+.npm
+
+# Secrets
+secrets_
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+*.py[cod]
+*$py.class
+
+#pipeline/data

@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  ibfflashflood:
+    build: .
+    volumes:
+      - rhdhv-flashflood-mwi:/code/data
+
+volumes:
+  rhdhv-flashflood-mwi:
+    driver: azure_file
+    driver_opts:
+      share_name: rhdhv-flashflood-mwi
+      storage_account_name: 510ibfsystem
+      storage_account_key: #fill
