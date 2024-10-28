@@ -6,10 +6,16 @@ logger = logging.getLogger(__name__)
 
 
 class RasterUploader:
+    """
+    Class to upload raster file to ibf API.
+    """
     def __init__(self, raster_files):
         self.raster_files = raster_files
 
     def upload_raster_file(self):
+        """
+        Upload raster_files (class attribute) to ibf raster endpoint
+        """
         for raster_file in self.raster_files:
             files = {"file": open(raster_file, "rb")}
             api_post_request(

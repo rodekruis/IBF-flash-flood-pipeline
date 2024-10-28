@@ -4,13 +4,15 @@ from pathlib import Path
 
 def clip_rasters_on_ta(ta_df, data_folder, output_folder):
     """
-    Clip a raster with a TA shapefile and export it as a new raster output.
+    Clip the country wide flood map to a flood map per TA for each TA where a flood event is predicted.
 
     Args:
-        SCENARIO_TAS (dict): Dictionary in which for each placeCode of an TA the chosen scenario is defined. Example:
-        {'MW10220': '60mm1hr_north', 'MW10203': '100mm48hr_north', 'MW10106': '60mm1hr_north'}.
-        raster (str): string of the rastername to be clipped.
-        output_folder (str) : string/path directory of the folder for the to be stored rasters
+        ta_df (gpd.GeoDataFrame): dataframe with all TA's. Contains a scenario column which describes the forecasted flood event for that TA
+        data_folder (Path): Path to input data folder where the different scenario datasets are stored
+        output_folder (Path): Folder where the clipped rasters should be stored
+
+    returns:
+        raster_path (list): list of paths to the raster files clipped/created
     """
     Path(output_folder).mkdir(exist_ok=True)
     raster_paths = []

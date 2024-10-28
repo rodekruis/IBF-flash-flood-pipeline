@@ -3,7 +3,11 @@ from osgeo import gdal
 
 def merge_rasters_gdal(output_path_raster, raster_paths):
     """
-    Merge rasters to one output raster for all TAS combined
+    Merge rasters for individual TA's to one combined raster
+
+    Args:
+        output_path_raster (str): path where the raster should be saved to (should have IBF compliant filename)
+        raster_paths (list): list of the individual rasters which should be merged to get to the combined raster
     """
     # Open the input rasters
     # raster_paths+=["malawi_nodata.tif"]

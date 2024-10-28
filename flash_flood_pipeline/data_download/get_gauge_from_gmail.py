@@ -18,6 +18,10 @@ class ImapInboxSearchError(Exception):
 
 
 def get_satellite_data():
+    """
+    Function to download Karonga sensor measurements which are send via gmail to malawisensordata@gmail.com
+    Files are stored in the data/gauge_data/ folder with karonga_{timestamp} as name
+    """
     imapSession = imaplib.IMAP4_SSL("imap.gmail.com")
     typ, accountDetails = imapSession.login(SENSOR_USERNAME, SENSOR_PASSWORD)
     if typ != "OK":

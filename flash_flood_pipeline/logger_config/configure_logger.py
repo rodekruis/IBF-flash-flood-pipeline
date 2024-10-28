@@ -2,6 +2,9 @@ import logging
 
 
 def configure_logger():
+    """
+    Configure logger (formatting and level) and set the logger to global to ensure it can be used throughout the pipeline.
+    """
     logging.root.handlers = []
     logging.basicConfig(
         format="%(asctime)s : %(levelname)s : %(message)s",
