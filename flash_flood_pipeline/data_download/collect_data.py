@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import requests
-
+import netCDF4 as nc
+from pathlib import Path
 from math import pi
 from numpy import cos, sin
 import rioxarray
@@ -18,10 +17,10 @@ from utils.general_utils.round_to_nearest_hour import (
     round_to_nearest_hour,
 )
 from settings.base import (
-    HISTORIC_TIME_PERIOD_DAYS,
     WATERLEVEL_SENSOR,
     METEO_RAIN_SENSOR,
 )
+
 
 from itertools import compress
 
@@ -226,102 +225,141 @@ class dataGetter:
         return rain_df
 
     def get_rain_forecast(self):
-        gfs_data = {}
-        # historic_start = round_to_nearest_hour(datetime.now()) - timedelta(
-        #     days=2, hours=3
-        # )
-        # historic_date_list = [
-        #     historic_start + timedelta(hours=3 * x) for x in range(18)
-        # ]
-        forecast_start = round_to_nearest_hour(datetime.now()) - timedelta(hours=9)
-        # forecast_date_list = [
-        #     forecast_start + timedelta(hours=3 * x) for x in range(30)
-        # ]
-        forecast_start_hour = round(forecast_start.hour / 6) * 6
-        if forecast_start_hour < 12:
-            forecast_start_hour = "0" + str(forecast_start_hour)
-        if forecast_start_hour == 24:
-            forecast_start_hour = "00"
-            forecast_start = forecast_start + timedelta(days=1)
-        # nc_dataset_historic = nc.Dataset(
-        # "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
-        # historic_start.strftime("%Y%m%d")
-        # )
-        # )
-        # nc_dataset_forecast = nc.Dataset(
-        # "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
-        # forecast_start.strftime("%Y%m%d"), forecast_start_hour
-        # )
-        # )
-        # latvar = nc_dataset_historic.variables["lat"][:]
-        # lat_dim = len(latvar)
-        # lonvar = nc_dataset_historic.variables["lon"][:]
-        # lon_dim = len(lonvar)
-        # latvar = np.stack([latvar for _ in range(lon_dim)], axis=0)
-        # lonvar = np.stack([lonvar for _ in range(lat_dim)], axis=1)
-        ta_gdf_4326 = self.ta_gdf.copy()
-        ta_gdf_4326.to_crs(4326, inplace=True)
         now = datetime.now()
 
-        xds = rioxarray.open_rasterio(
+        expected_cosmo_path = Path(
             r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(now.strftime("%Y%m%d"))
         )
-        xds.rio.write_crs("epsg:4326", inplace=True)
 
-        upscale_factor = 8
-        new_width = xds.rio.width * upscale_factor
-        new_height = xds.rio.height * upscale_factor
-        xds_upsampled_forecast = xds.rio.reproject(
-            xds.rio.crs,
-            shape=(new_height, new_width),
-            resampling=Resampling.bilinear,
-        )
-        datetime_list_forecast = [
-            datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
-            for x in xds_upsampled_forecast.time.data[:]
-        ]
+        gfs_data = {}
 
-        past = now - timedelta(days=5)
-        xds = rioxarray.open_rasterio(
-            r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(past.strftime("%Y%m%d"))
-        )
-        xds.rio.write_crs("epsg:4326", inplace=True)
-
-        xds_upsampled_hindcast = xds.rio.reproject(
-            xds.rio.crs,
-            shape=(new_height, new_width),
-            resampling=Resampling.bilinear,
-        )
-        datetime_list_hindcast = [
-            datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
-            for x in xds_upsampled_hindcast.time.data[:]
-        ]
-
-        for _, row in ta_gdf_4326.iterrows():
-            xds_clipped = xds_upsampled_hindcast.rio.clip(
-                [row["geometry"]], ta_gdf_4326.crs
-            )
-            xds_clipped.data[xds_clipped.data > 1000] = np.nan
-            cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
-            mean_rain_ts = [cum_mean_rain_ts[0]]
-            for x in range(1, len(cum_mean_rain_ts)):
-                mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
-            gfs_data[row["placeCode"]] = pd.DataFrame(
-                {"datetime": datetime_list_hindcast, "precipitation": mean_rain_ts}
+        if not expected_cosmo_path.exists():
+            # switch to gfs
+            historic_start = round_to_nearest_hour(datetime.now()) - timedelta(
+                days=2, hours=3
             )
 
-            xds_clipped = xds_upsampled_forecast.rio.clip(
-                [row["geometry"]], ta_gdf_4326.crs
+            forecast_start = round_to_nearest_hour(datetime.now()) - timedelta(hours=9)
+
+            forecast_start_hour = round(forecast_start.hour / 6) * 6
+
+            if forecast_start_hour < 12:
+                forecast_start_hour = "0" + str(forecast_start_hour)
+
+            if forecast_start_hour == 24:
+                forecast_start_hour = "00"
+                forecast_start = forecast_start + timedelta(days=1)
+
+            nc_dataset_historic = nc.Dataset(
+                "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
+                    historic_start.strftime("%Y%m%d")
+                )
             )
-            xds_clipped.data[xds_clipped.data > 1000] = np.nan
-            cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
-            mean_rain_ts = [cum_mean_rain_ts[0]]
-            for x in range(1, len(cum_mean_rain_ts)):
-                mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
-            gfs_data[row["placeCode"]] = pd.DataFrame(
-                {"datetime": datetime_list_forecast, "precipitation": mean_rain_ts}
+            # nc_dataset_forecast = nc.Dataset(
+            #     "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
+            #         forecast_start.strftime("%Y%m%d"), forecast_start_hour
+            #     )
+            # )
+
+            latvar = nc_dataset_historic.variables["lat"][:]
+            lat_dim = len(latvar)
+
+            lonvar = nc_dataset_historic.variables["lon"][:]
+            lon_dim = len(lonvar)
+
+            latvar = np.stack([latvar for _ in range(lon_dim)], axis=0)
+            lonvar = np.stack([lonvar for _ in range(lat_dim)], axis=1)
+
+            ta_gdf_4326 = self.ta_gdf.copy()
+            ta_gdf_4326.to_crs(4326, inplace=True)
+
+            ta_gdf_4326["centr"] = ta_gdf_4326.centroid
+
+            time = [
+                datetime(year=1, month=1, day=1) + timedelta(days=d)
+                for d in nc_dataset_historic["time"][:]
+            ]
+
+            for _, row in ta_gdf_4326.head(10).iterrows():
+                iy_min, ix_min = tunnel_fast(
+                    latvar=latvar, lonvar=lonvar, lat0=row.centr.x, lon0=row.centr.y
+                )
+                gfs_rain_ts_cumulative = [
+                    float(x) if x != "--" else 0.0
+                    for x in nc_dataset_historic["apcpsfc"][:, ix_min, iy_min]
+                ]
+                gfs_rain_ts_incremental = [
+                    val - gfs_rain_ts_cumulative[i - 1] if i > 0 else val
+                    for i, val in enumerate(gfs_rain_ts_cumulative)
+                ]
+                gfs_data[row["placeCode"]] = pd.DataFrame(
+                    data={"datetime": time, "precipitation": gfs_rain_ts_incremental}
+                )
+
+        else:
+
+            ta_gdf_4326 = self.ta_gdf.copy()
+            ta_gdf_4326.to_crs(4326, inplace=True)
+
+            xds = rioxarray.open_rasterio(
+                r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(now.strftime("%Y%m%d"))
             )
-            gfs_data[row["placeCode"]] = gfs_data[row["placeCode"]].drop_duplicates(
-                subset="datetime", keep="last"
+            xds.rio.write_crs("epsg:4326", inplace=True)
+
+            upscale_factor = 8
+            new_width = xds.rio.width * upscale_factor
+            new_height = xds.rio.height * upscale_factor
+            xds_upsampled_forecast = xds.rio.reproject(
+                xds.rio.crs,
+                shape=(new_height, new_width),
+                resampling=Resampling.bilinear,
             )
+            datetime_list_forecast = [
+                datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
+                for x in xds_upsampled_forecast.time.data[:]
+            ]
+
+            past = now - timedelta(days=5)
+            xds = rioxarray.open_rasterio(
+                r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(past.strftime("%Y%m%d"))
+            )
+            xds.rio.write_crs("epsg:4326", inplace=True)
+
+            xds_upsampled_hindcast = xds.rio.reproject(
+                xds.rio.crs,
+                shape=(new_height, new_width),
+                resampling=Resampling.bilinear,
+            )
+            datetime_list_hindcast = [
+                datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
+                for x in xds_upsampled_hindcast.time.data[:]
+            ]
+
+            for _, row in ta_gdf_4326.iterrows():
+                xds_clipped = xds_upsampled_hindcast.rio.clip(
+                    [row["geometry"]], ta_gdf_4326.crs
+                )
+                xds_clipped.data[xds_clipped.data > 1000] = np.nan
+                cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
+                mean_rain_ts = [cum_mean_rain_ts[0]]
+                for x in range(1, len(cum_mean_rain_ts)):
+                    mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
+                gfs_data[row["placeCode"]] = pd.DataFrame(
+                    {"datetime": datetime_list_hindcast, "precipitation": mean_rain_ts}
+                )
+
+                xds_clipped = xds_upsampled_forecast.rio.clip(
+                    [row["geometry"]], ta_gdf_4326.crs
+                )
+                xds_clipped.data[xds_clipped.data > 1000] = np.nan
+                cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
+                mean_rain_ts = [cum_mean_rain_ts[0]]
+                for x in range(1, len(cum_mean_rain_ts)):
+                    mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
+                gfs_data[row["placeCode"]] = pd.DataFrame(
+                    {"datetime": datetime_list_forecast, "precipitation": mean_rain_ts}
+                )
+                gfs_data[row["placeCode"]] = gfs_data[row["placeCode"]].drop_duplicates(
+                    subset="datetime", keep="last"
+                )
         return gfs_data

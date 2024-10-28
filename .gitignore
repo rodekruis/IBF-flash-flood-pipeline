@@ -15,6 +15,7 @@ test/*
 *.ipynb
 *.tif
 *.tif.aux.xml
+*.nc
 
 # Local data files
 pipeline/data
