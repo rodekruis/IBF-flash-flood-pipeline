@@ -240,7 +240,7 @@ def main():
         df_combined.sort_values(by=["datetime"], inplace=True)
         gfs_data["MW10407"] = df_combined
 
-    logger.info("step 1 finished: retrieving gfs data with API-request")
+    logger.info("step 1 finished: retrieving GFS/COSMO data with API-request")
     logger.info(str(datetime.datetime.now()))
 
     # step (2): scenarioselector: choose scenario per ta
@@ -258,14 +258,17 @@ def main():
     # TODO: remove until next comment (testing)
     karonga_leadtime = 1
     karonga_events = {"MW10203": "100mm_12hr"}
-
-    # blantyre_leadtime = 1
-    # blantyre_events = {
-    #     "MW31533": "100mm_12hr",
-    #     "MW31534": "100mm_12hr",
-    #     "MW31532": "100mm_12hr",
-    #     "MW31541": "100mm_12hr",
-    # }
+    
+    print(blantyre_events)
+    print(rumphi_events)
+    
+    blantyre_leadtime = 1
+    blantyre_events = {
+        "MW31533": "100mm_12hr",
+        "MW31534": "100mm_12hr",
+        "MW31532": "100mm_12hr",
+        "MW31541": "100mm_12hr",
+    }
     # end of testing segment
 
     logger.info("step 2 finished: scenario selection")

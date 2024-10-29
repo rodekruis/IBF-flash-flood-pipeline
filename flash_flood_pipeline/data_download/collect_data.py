@@ -232,13 +232,13 @@ class dataGetter:
                     hindcast_start.strftime("%Y%m%d")
                 )
             )
-            
+
             nc_dataset_forecast = nc.Dataset(
                 "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
                     forecast_start.strftime("%Y%m%d"), forecast_start_hour
                 )
             )
-            
+
             latvar_hind, lonvar_hind = extract_lat_lon(ds=nc_dataset_hindcast)
             latvar_fc, lonvar_fc = extract_lat_lon(ds=nc_dataset_forecast)
 
@@ -251,11 +251,11 @@ class dataGetter:
                 datetime(year=1, month=1, day=1) + timedelta(days=d)
                 for d in nc_dataset_hindcast["time"][:]
             ]
-            
+
             time_forecast = [
                 datetime(year=1, month=1, day=1) + timedelta(days=d)
                 for d in nc_dataset_forecast["time"][:]
-            ]   
+            ]
 
             for _, row in ta_gdf_4326.iterrows():
                 iy_min_hist, ix_min_hist = tunnel_fast(
@@ -296,7 +296,9 @@ class dataGetter:
 
                 gfs_precipitation = pd.concat(gfs_hindcast_and_forecast, axis=0)
                 gfs_precipitation = gfs_precipitation.sort_values("datetime")
-
+                gfs_precipitation = gfs_precipitation.drop_duplicates(
+                    subset="datetime", keep="last"
+                )
                 gfs_data[row["placeCode"]] = gfs_precipitation
         else:
             ta_gdf_4326 = self.ta_gdf.copy()

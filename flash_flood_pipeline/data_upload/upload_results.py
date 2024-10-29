@@ -152,7 +152,6 @@ class DataUploader:
             }
             api_post_request("point-data/dynamic", body=dynamic_post_body)
       
-
     def expose_geoserver_assets(self):
         """
         Mark features in large geographic datasets (currently buildings & roads) as exposed in the IBF portal. These have a different endpoint then the point assets
