@@ -11,18 +11,18 @@ MAX_COMP_BYTES = 9
 
 
 def process_compacted_data(export_path, log_data, log_data_size, emei):
-"""
+    """
     For our sensor in Karonga we use a satellite modem to transfer the measurement data to the IBF system. To reduce costs the sensor sends out a compacted byte sequence. This function is able to extract the compacted data.
 
     Args:
-        export_path (str): folder to store the extracted sbd file to 
+        export_path (str): folder to store the extracted sbd file to
         log_data (Bytes): Bytestring as read from the sbd file
         log_data_size (int): number of bytes that make up the file
         emei (int): obsolete parameter used to be needed for extraction of bytes
 
     Returns:
         True when a file has been decripted succesfully and False if not.
-"""
+    """
     if log_data_size == 0:
         return True  # Nothing to do
 

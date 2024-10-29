@@ -9,6 +9,7 @@ class RasterUploader:
     """
     Class to upload raster file to ibf API.
     """
+
     def __init__(self, raster_files):
         self.raster_files = raster_files
 

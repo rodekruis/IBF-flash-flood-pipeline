@@ -123,12 +123,12 @@ def combine_events_and_upload_to_ibf(
         date (datetime.datetime): reference time used to upload to the IBF system
         additional_raster_paths (list): list of raster paths which belong to a different district but have not yet been uploaded.
             needed if multiple regions have the same leadtime.
-        skip_depth_upload (Bool): whether depth upload should be skipped (in case of 2 regions with same leadtime). If Skip is provided a list 
+        skip_depth_upload (Bool): whether depth upload should be skipped (in case of 2 regions with same leadtime). If Skip is provided a list
             of raster paths is returned to be uploaded the next time this function is called.
 
     Returns:
         data_uploader (DataUploader): class with all data to be uploaded
-        raster_paths (list): list of all raster paths to be uploaded in the next function call. 
+        raster_paths (list): list of all raster paths to be uploaded in the next function call.
     """
     logger.info(
         "step 3a started for vector data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -320,7 +320,7 @@ def main():
             combine_events_and_upload_to_ibf(
                 ta_gdf=ta_gdf,
                 events=triggered_regions_leadtime_filter["events"].iloc[0],
-                lead_time=triggered_regions_leadtime_filter["lead_time"].iloc[0],
+                lead_time=int(triggered_regions_leadtime_filter["lead_time"].iloc[0]),
                 districtname=triggered_regions_leadtime_filter["region"].iloc[0],
                 date=date,
             )
