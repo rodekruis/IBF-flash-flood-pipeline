@@ -23,7 +23,7 @@ sys.path.append(r"d:\VSCode\IBF_FLASH_FLOOD_PIPELINE")
 logger = logging.getLogger(__name__)
 
 
-def determine_trigger_states(karonga_events, rumphi_events, blantyre_events):
+def determine_trigger_states(karonga_events: dict, rumphi_events: dict, blantyre_events: dict):
     """Determine for the three regions whether they should be triggered or not (based on the exposure of >20 people
 
     Args:
@@ -100,6 +100,7 @@ def determine_trigger_states(karonga_events, rumphi_events, blantyre_events):
         blantyre_trigger = any(blantyre_triggered_list)
     else:
         blantyre_trigger = False
+        
     return karonga_trigger, rumphi_trigger, blantyre_trigger
 
 

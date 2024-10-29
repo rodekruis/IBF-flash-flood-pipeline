@@ -3,13 +3,13 @@ import numpy as np
 import pandas as pd
 import netCDF4 as nc
 from pathlib import Path
-from math import pi
-from numpy import cos, sin
 import rioxarray
 from rasterio.enums import Resampling
 import os
 import json
 from data_download.get_gauge_from_gmail import get_satellite_data
+from data_download.utils.tunnel_fast import tunnel_fast
+from data_download.utils.extract_lat_lon import extract_lat_lon
 from data_download.process_compacted_iridium_data import (
     process_compacted_data,
 )
@@ -20,38 +20,7 @@ from settings.base import (
     WATERLEVEL_SENSOR,
     METEO_RAIN_SENSOR,
 )
-
-
 from itertools import compress
-
-
-def tunnel_fast(latvar, lonvar, lat0, lon0):
-    """
-    Find closest point in a set of (lat,lon) points to specified point
-    latvar - 2D latitude variable from an open netCDF dataset
-    lonvar - 2D longitude variable from an open netCDF dataset
-    lat0,lon0 - query point
-    Returns iy,ix such that the square of the tunnel distance
-    between (latval[it,ix],lonval[iy,ix]) and (lat0,lon0)
-    is minimum.
-    """
-    rad_factor = pi / 180.0  # for trignometry, need angles in radians
-    # Read latitude and longitude from file into numpy arrays
-    latvals = latvar[:] * rad_factor
-    lonvals = lonvar[:] * rad_factor
-    ny, nx = latvals.shape
-    lat0_rad = lat0 * rad_factor
-    lon0_rad = lon0 * rad_factor
-    # Compute numpy arrays for all values, no loops
-    clat, clon = cos(latvals), cos(lonvals)
-    slat, slon = sin(latvals), sin(lonvals)
-    delX = cos(lat0_rad) * cos(lon0_rad) - clat * clon
-    delY = cos(lat0_rad) * sin(lon0_rad) - clat * slon
-    delZ = sin(lat0_rad) - slat
-    dist_sq = delX**2 + delY**2 + delZ**2
-    minindex_1d = dist_sq.argmin()  # 1D index of minimum element
-    iy_min, ix_min = np.unravel_index(minindex_1d, latvals.shape)
-    return iy_min, ix_min
 
 
 class dataGetter:
@@ -226,16 +195,24 @@ class dataGetter:
 
     def get_rain_forecast(self):
         now = datetime.now()
+        past = now - timedelta(days=5)
 
-        expected_cosmo_path = Path(
+        expected_cosmo_hindcast_path = Path(
+            r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(past.strftime("%Y%m%d"))
+        )
+
+        expected_cosmo_forecast_path = Path(
             r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(now.strftime("%Y%m%d"))
         )
 
         gfs_data = {}
 
-        if not expected_cosmo_path.exists():
+        if (
+            expected_cosmo_forecast_path.exists()
+            or expected_cosmo_hindcast_path.exists()
+        ):
             # switch to gfs
-            historic_start = round_to_nearest_hour(datetime.now()) - timedelta(
+            hindcast_start = round_to_nearest_hour(datetime.now()) - timedelta(
                 days=2, hours=3
             )
 
@@ -250,60 +227,82 @@ class dataGetter:
                 forecast_start_hour = "00"
                 forecast_start = forecast_start + timedelta(days=1)
 
-            nc_dataset_historic = nc.Dataset(
+            nc_dataset_hindcast = nc.Dataset(
                 "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
-                    historic_start.strftime("%Y%m%d")
+                    hindcast_start.strftime("%Y%m%d")
                 )
             )
-            # nc_dataset_forecast = nc.Dataset(
-            #     "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
-            #         forecast_start.strftime("%Y%m%d"), forecast_start_hour
-            #     )
-            # )
-
-            latvar = nc_dataset_historic.variables["lat"][:]
-            lat_dim = len(latvar)
-
-            lonvar = nc_dataset_historic.variables["lon"][:]
-            lon_dim = len(lonvar)
-
-            latvar = np.stack([latvar for _ in range(lon_dim)], axis=0)
-            lonvar = np.stack([lonvar for _ in range(lat_dim)], axis=1)
+            
+            nc_dataset_forecast = nc.Dataset(
+                "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
+                    forecast_start.strftime("%Y%m%d"), forecast_start_hour
+                )
+            )
+            
+            latvar_hind, lonvar_hind = extract_lat_lon(ds=nc_dataset_hindcast)
+            latvar_fc, lonvar_fc = extract_lat_lon(ds=nc_dataset_forecast)
 
             ta_gdf_4326 = self.ta_gdf.copy()
             ta_gdf_4326.to_crs(4326, inplace=True)
 
             ta_gdf_4326["centr"] = ta_gdf_4326.centroid
 
-            time = [
+            time_hindcast = [
                 datetime(year=1, month=1, day=1) + timedelta(days=d)
-                for d in nc_dataset_historic["time"][:]
+                for d in nc_dataset_hindcast["time"][:]
             ]
+            
+            time_forecast = [
+                datetime(year=1, month=1, day=1) + timedelta(days=d)
+                for d in nc_dataset_forecast["time"][:]
+            ]   
 
-            for _, row in ta_gdf_4326.head(10).iterrows():
-                iy_min, ix_min = tunnel_fast(
-                    latvar=latvar, lonvar=lonvar, lat0=row.centr.x, lon0=row.centr.y
+            for _, row in ta_gdf_4326.iterrows():
+                iy_min_hist, ix_min_hist = tunnel_fast(
+                    latvar=latvar_hind,
+                    lonvar=lonvar_hind,
+                    lat0=row.centr.x,
+                    lon0=row.centr.y,
                 )
-                gfs_rain_ts_cumulative = [
-                    float(x) if x != "--" else 0.0
-                    for x in nc_dataset_historic["apcpsfc"][:, ix_min, iy_min]
-                ]
-                gfs_rain_ts_incremental = [
-                    val - gfs_rain_ts_cumulative[i - 1] if i > 0 else val
-                    for i, val in enumerate(gfs_rain_ts_cumulative)
-                ]
-                gfs_data[row["placeCode"]] = pd.DataFrame(
-                    data={"datetime": time, "precipitation": gfs_rain_ts_incremental}
+                iy_min_fc, ix_min_fc = tunnel_fast(
+                    latvar=latvar_fc,
+                    lonvar=lonvar_fc,
+                    lat0=row.centr.x,
+                    lon0=row.centr.y,
                 )
 
+                gfs_hindcast_and_forecast = []
+
+                for ix_min, iy_min, time in [
+                    (ix_min_hist, iy_min_hist, time_hindcast),
+                    (ix_min_fc, iy_min_fc, time_forecast),
+                ]:
+                    gfs_rain_ts_cumulative = [
+                        float(x) if x != "--" else 0.0
+                        for x in nc_dataset_hindcast["apcpsfc"][:, ix_min, iy_min]
+                    ]
+                    gfs_rain_ts_incremental = [
+                        val - gfs_rain_ts_cumulative[i - 1] if i > 0 else val
+                        for i, val in enumerate(gfs_rain_ts_cumulative)
+                    ]
+                    gfs_hindcast_and_forecast.append(
+                        pd.DataFrame(
+                            data={
+                                "datetime": time,
+                                "precipitation": gfs_rain_ts_incremental,
+                            }
+                        )
+                    )
+
+                gfs_precipitation = pd.concat(gfs_hindcast_and_forecast, axis=0)
+                gfs_precipitation = gfs_precipitation.sort_values("datetime")
+
+                gfs_data[row["placeCode"]] = gfs_precipitation
         else:
-
             ta_gdf_4326 = self.ta_gdf.copy()
             ta_gdf_4326.to_crs(4326, inplace=True)
 
-            xds = rioxarray.open_rasterio(
-                r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(now.strftime("%Y%m%d"))
-            )
+            xds = rioxarray.open_rasterio(expected_cosmo_forecast_path)
             xds.rio.write_crs("epsg:4326", inplace=True)
 
             upscale_factor = 8
@@ -320,9 +319,7 @@ class dataGetter:
             ]
 
             past = now - timedelta(days=5)
-            xds = rioxarray.open_rasterio(
-                r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(past.strftime("%Y%m%d"))
-            )
+            xds = rioxarray.open_rasterio(expected_cosmo_hindcast_path)
             xds.rio.write_crs("epsg:4326", inplace=True)
 
             xds_upsampled_hindcast = xds.rio.reproject(
@@ -342,24 +339,49 @@ class dataGetter:
                 xds_clipped.data[xds_clipped.data > 1000] = np.nan
                 cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
                 mean_rain_ts = [cum_mean_rain_ts[0]]
+
                 for x in range(1, len(cum_mean_rain_ts)):
                     mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
+
                 gfs_data[row["placeCode"]] = pd.DataFrame(
                     {"datetime": datetime_list_hindcast, "precipitation": mean_rain_ts}
                 )
-
                 xds_clipped = xds_upsampled_forecast.rio.clip(
                     [row["geometry"]], ta_gdf_4326.crs
                 )
                 xds_clipped.data[xds_clipped.data > 1000] = np.nan
                 cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
                 mean_rain_ts = [cum_mean_rain_ts[0]]
+
                 for x in range(1, len(cum_mean_rain_ts)):
                     mean_rain_ts.append(cum_mean_rain_ts[x] - cum_mean_rain_ts[x - 1])
-                gfs_data[row["placeCode"]] = pd.DataFrame(
-                    {"datetime": datetime_list_forecast, "precipitation": mean_rain_ts}
+
+                gfs_data[row["placeCode"]] = pd.concat(
+                    [
+                        gfs_data[row["placeCode"]],
+                        pd.DataFrame(
+                            {
+                                "datetime": datetime_list_forecast,
+                                "precipitation": mean_rain_ts,
+                            }
+                        ),
+                    ],
+                    axis=0,
                 )
                 gfs_data[row["placeCode"]] = gfs_data[row["placeCode"]].drop_duplicates(
                     subset="datetime", keep="last"
                 )
+                gfs_data[row["placeCode"]] = gfs_data[row["placeCode"]].sort_values(
+                    "datetime", ascending=True
+                )
+
+        # combined_rainfall = []
+        # for _, val in gfs_data.items():
+        #     val = val.set_index("datetime")
+        #     combined_rainfall.append(val)
+
+        # print(pd.concat(combined_rainfall, axis=1).head)
+        # pd.concat(combined_rainfall, axis=1).to_csv(
+        #     r"d:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline\rainfall_test_gfs_sampling.csv"
+        # )
         return gfs_data
