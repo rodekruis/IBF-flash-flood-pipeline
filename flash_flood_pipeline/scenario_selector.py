@@ -240,12 +240,12 @@ class scenarioSelector:
             df["datetime"] = pd.to_datetime(df["datetime"])
             df.set_index("datetime", inplace=True)
         for _, df in gfs_data.items():
-            df["48hr"] = df[COLUMNAME].rolling("48H").sum()
-            df["24hr"] = df[COLUMNAME].rolling("24H").sum()
-            df["12hr"] = df[COLUMNAME].rolling("12H").sum()
-            df["4hr"] = df[COLUMNAME].rolling("4H").sum()
-            df["2hr"] = df[COLUMNAME].rolling("2H").sum()
-            df["1hr"] = df[COLUMNAME].rolling("1H").sum()
+            df["48hr"] = df[COLUMNAME].rolling("48h").sum()
+            df["24hr"] = df[COLUMNAME].rolling("24h").sum()
+            df["12hr"] = df[COLUMNAME].rolling("12h").sum()
+            df["4hr"] = df[COLUMNAME].rolling("4h").sum()
+            df["2hr"] = df[COLUMNAME].rolling("2h").sum()
+            df["1hr"] = df[COLUMNAME].rolling("1h").sum()
             del df[COLUMNAME]
         return gfs_data
 

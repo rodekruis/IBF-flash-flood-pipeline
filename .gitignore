@@ -9,12 +9,15 @@
 .env
 secrets.py
 secrets2.py
+local_secret.py
 data/*
 test/*
 *.vrt
 *.ipynb
 *.tif
 *.tif.aux.xml
+*.nc
+*.csv
 
 # Local data files
 pipeline/data

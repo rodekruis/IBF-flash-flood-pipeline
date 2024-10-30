@@ -4,7 +4,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import logging
-from settings.base import DATA_FOLDER, ASSET_TYPES
+from settings.base import DATA_FOLDER, ASSET_TYPES, ENVIRONMENT
 from logger_config.configure_logger import configure_logger
 from data_download.collect_data import dataGetter
 from data_upload.upload_results import DataUploader
@@ -23,7 +23,9 @@ sys.path.append(r"d:\VSCode\IBF_FLASH_FLOOD_PIPELINE")
 logger = logging.getLogger(__name__)
 
 
-def determine_trigger_states(karonga_events, rumphi_events, blantyre_events):
+def determine_trigger_states(
+    karonga_events: dict, rumphi_events: dict, blantyre_events: dict
+):
     """Determine for the three regions whether they should be triggered or not (based on the exposure of >20 people
 
     Args:
@@ -100,6 +102,7 @@ def determine_trigger_states(karonga_events, rumphi_events, blantyre_events):
         blantyre_trigger = any(blantyre_triggered_list)
     else:
         blantyre_trigger = False
+
     return karonga_trigger, rumphi_trigger, blantyre_trigger
 
 
@@ -156,7 +159,7 @@ def combine_events_and_upload_to_ibf(
     raster_paths = clip_rasters_on_ta(ta_gdf, DATA_FOLDER, Path("data/temp_rasters"))
 
     if not skip_depth_upload:
-        raster_paths += ["nodata_new2.tif"]
+        raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
         raster_paths += additional_raster_paths
         merge_rasters_gdal(
             "data/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
@@ -206,7 +209,7 @@ def main():
     logger.info(str(datetime.datetime.now()))
 
     # step (1): get gfs data per ta
-    ta_gdf = gpd.read_file(r"regions.gpkg")
+    ta_gdf = gpd.read_file(rf"data/static_data/{ENVIRONMENT}/regions.gpkg")
     ta_gdf = ta_gdf.to_crs(epsg=4326)  # ,allow_override=True)
     logger.info("step 1 started: retrieving gfs data with API-request")
     data_getter = dataGetter(ta_gdf)
@@ -239,7 +242,7 @@ def main():
         df_combined.sort_values(by=["datetime"], inplace=True)
         gfs_data["MW10407"] = df_combined
 
-    logger.info("step 1 finished: retrieving gfs data with API-request")
+    logger.info("step 1 finished: retrieving GFS/COSMO data with API-request")
     logger.info(str(datetime.datetime.now()))
 
     # step (2): scenarioselector: choose scenario per ta
@@ -258,13 +261,13 @@ def main():
     karonga_leadtime = 1
     karonga_events = {"MW10203": "100mm_12hr"}
 
-    # blantyre_leadtime = 1
-    # blantyre_events = {
-    #     "MW31533": "100mm_12hr",
-    #     "MW31534": "100mm_12hr",
-    #     "MW31532": "100mm_12hr",
-    #     "MW31541": "100mm_12hr",
-    # }
+    blantyre_leadtime = 1
+    blantyre_events = {
+        "MW31533": "100mm_12hr",
+        "MW31534": "100mm_12hr",
+        "MW31532": "100mm_12hr",
+        "MW31541": "100mm_12hr",
+    }
     # end of testing segment
 
     logger.info("step 2 finished: scenario selection")
