@@ -208,8 +208,8 @@ class dataGetter:
         gfs_data = {}
 
         if (
-            expected_cosmo_forecast_path.exists()
-            or expected_cosmo_hindcast_path.exists()
+            not expected_cosmo_forecast_path.exists()
+            or not expected_cosmo_hindcast_path.exists()
         ):
             # switch to gfs
             hindcast_start = round_to_nearest_hour(datetime.now()) - timedelta(

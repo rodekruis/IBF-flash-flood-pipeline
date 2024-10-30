@@ -47,8 +47,8 @@ class DataUploader:
             roads (gpd.GeoDataFrame, lines): all roads in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
             buildings (gpd.GeoDataFrame, polygons): all buildings in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
             health_sites (gpd.GeoDataFrame, points): all health_sites in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-            sensor_actual_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the latest measured value as value. 
-            sensor_previous_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the measured value of 24 hours ago as value. 
+            sensor_actual_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the latest measured value as value.
+            sensor_previous_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the measured value of 24 hours ago as value.
             sensor_reference_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the Reference (typical) value for this month as value.
             date (datetime.datetime): Reference datetime to be send to the IBF portal
         """
@@ -144,14 +144,18 @@ class DataUploader:
             "waterpoints_internal": exposed_waterpoints,
             "health_sites": exposed_healthsites,
         }.items():
-            dynamic_post_body = {
-                "pointDataCategory": point_data_category,
-                "leadTime": self.lead_time,
-                "key": "exposure",
-                "dynamicPointData": [{int(fid): True} for fid in exposed_fids],
-            }
-            api_post_request("point-data/dynamic", body=dynamic_post_body)
-      
+            if len(exposed_fids) > 0:
+                dynamic_post_body = {
+                    "pointDataCategory": point_data_category,
+                    "leadTime": self.lead_time,
+                    "key": "exposure",
+                    "disasterType": "flash-floods",
+                    "dynamicPointData": [
+                        {"fid": int(fid), "value": True} for fid in exposed_fids
+                    ],
+                }
+                api_post_request("point-data/dynamic", body=dynamic_post_body)
+
     def expose_geoserver_assets(self):
         """
         Mark features in large geographic datasets (currently buildings & roads) as exposed in the IBF portal. These have a different endpoint then the point assets

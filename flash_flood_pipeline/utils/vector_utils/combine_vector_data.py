@@ -1,5 +1,6 @@
 import geopandas as gpd
 import pandas as pd
+from settings.base import ENVIRONMENT
 
 
 def combine_vector_data(ta_df, data_folder, asset_type):
@@ -41,7 +42,9 @@ def combine_vector_data(ta_df, data_folder, asset_type):
 
                 vector_layers.append(vector_layer_of_interest_subset)
         if asset_type == "region_statistics":
-            region_statistics_template = gpd.read_file(r"region_statistics_zeroes.gpkg")
+            region_statistics_template = gpd.read_file(
+                rf"data/static_data/{ENVIRONMENT}/region_statistics_zeroes.gpkg"
+            )
             region_statistics_template = region_statistics_template.rename(
                 columns={"ADM3_PCODE": "placeCode"}
             )

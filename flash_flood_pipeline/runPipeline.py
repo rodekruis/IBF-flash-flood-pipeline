@@ -4,7 +4,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import logging
-from settings.base import DATA_FOLDER, ASSET_TYPES
+from settings.base import DATA_FOLDER, ASSET_TYPES, ENVIRONMENT
 from logger_config.configure_logger import configure_logger
 from data_download.collect_data import dataGetter
 from data_upload.upload_results import DataUploader
@@ -23,7 +23,9 @@ sys.path.append(r"d:\VSCode\IBF_FLASH_FLOOD_PIPELINE")
 logger = logging.getLogger(__name__)
 
 
-def determine_trigger_states(karonga_events: dict, rumphi_events: dict, blantyre_events: dict):
+def determine_trigger_states(
+    karonga_events: dict, rumphi_events: dict, blantyre_events: dict
+):
     """Determine for the three regions whether they should be triggered or not (based on the exposure of >20 people
 
     Args:
@@ -100,7 +102,7 @@ def determine_trigger_states(karonga_events: dict, rumphi_events: dict, blantyre
         blantyre_trigger = any(blantyre_triggered_list)
     else:
         blantyre_trigger = False
-        
+
     return karonga_trigger, rumphi_trigger, blantyre_trigger
 
 
@@ -124,12 +126,12 @@ def combine_events_and_upload_to_ibf(
         date (datetime.datetime): reference time used to upload to the IBF system
         additional_raster_paths (list): list of raster paths which belong to a different district but have not yet been uploaded.
             needed if multiple regions have the same leadtime.
-        skip_depth_upload (Bool): whether depth upload should be skipped (in case of 2 regions with same leadtime). If Skip is provided a list 
+        skip_depth_upload (Bool): whether depth upload should be skipped (in case of 2 regions with same leadtime). If Skip is provided a list
             of raster paths is returned to be uploaded the next time this function is called.
 
     Returns:
         data_uploader (DataUploader): class with all data to be uploaded
-        raster_paths (list): list of all raster paths to be uploaded in the next function call. 
+        raster_paths (list): list of all raster paths to be uploaded in the next function call.
     """
     logger.info(
         "step 3a started for vector data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -157,7 +159,7 @@ def combine_events_and_upload_to_ibf(
     raster_paths = clip_rasters_on_ta(ta_gdf, DATA_FOLDER, Path("data/temp_rasters"))
 
     if not skip_depth_upload:
-        raster_paths += ["nodata_new2.tif"]
+        raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
         raster_paths += additional_raster_paths
         merge_rasters_gdal(
             "data/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
@@ -207,7 +209,7 @@ def main():
     logger.info(str(datetime.datetime.now()))
 
     # step (1): get gfs data per ta
-    ta_gdf = gpd.read_file(r"regions.gpkg")
+    ta_gdf = gpd.read_file(rf"data/static_data/{ENVIRONMENT}/regions.gpkg")
     ta_gdf = ta_gdf.to_crs(epsg=4326)  # ,allow_override=True)
     logger.info("step 1 started: retrieving gfs data with API-request")
     data_getter = dataGetter(ta_gdf)
@@ -258,10 +260,7 @@ def main():
     # TODO: remove until next comment (testing)
     karonga_leadtime = 1
     karonga_events = {"MW10203": "100mm_12hr"}
-    
-    print(blantyre_events)
-    print(rumphi_events)
-    
+
     blantyre_leadtime = 1
     blantyre_events = {
         "MW31533": "100mm_12hr",
