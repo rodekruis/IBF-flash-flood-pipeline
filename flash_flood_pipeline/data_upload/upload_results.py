@@ -144,15 +144,13 @@ class DataUploader:
             "waterpoints_internal": exposed_waterpoints,
             "health_sites": exposed_healthsites,
         }.items():
-            if len(exposed_fids) > 0:
+            if exposed_fids:
                 dynamic_post_body = {
                     "pointDataCategory": point_data_category,
+                    "disasterType": "flash-floods",
                     "leadTime": self.lead_time,
                     "key": "exposure",
-                    "disasterType": "flash-floods",
-                    "dynamicPointData": [
-                        {"fid": int(fid), "value": True} for fid in exposed_fids
-                    ],
+                    "dynamicPointData": [{"fid":int(fid),"value": True} for fid in exposed_fids],
                 }
                 api_post_request("point-data/dynamic", body=dynamic_post_body)
 

@@ -323,7 +323,7 @@ def main():
             combine_events_and_upload_to_ibf(
                 ta_gdf=ta_gdf,
                 events=triggered_regions_leadtime_filter["events"].iloc[0],
-                lead_time=triggered_regions_leadtime_filter["lead_time"].iloc[0],
+                lead_time=int(triggered_regions_leadtime_filter["lead_time"].iloc[0]),
                 districtname=triggered_regions_leadtime_filter["region"].iloc[0],
                 date=date,
             )
