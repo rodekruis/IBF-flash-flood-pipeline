@@ -144,13 +144,15 @@ class DataUploader:
             "waterpoints_internal": exposed_waterpoints,
             "health_sites": exposed_healthsites,
         }.items():
-            dynamic_post_body = {
-                "pointDataCategory": point_data_category,
-                "leadTime": self.lead_time,
-                "key": "exposure",
-                "dynamicPointData": [{int(fid): True} for fid in exposed_fids],
-            }
-            api_post_request("point-data/dynamic", body=dynamic_post_body)
+            if exposed_fids:
+                dynamic_post_body = {
+                    "pointDataCategory": point_data_category,
+                    "disasterType": "flash-floods",
+                    "leadTime": self.lead_time,
+                    "key": "exposure",
+                    "dynamicPointData": [{"fid":int(fid),"value": True} for fid in exposed_fids],
+                }
+                api_post_request("point-data/dynamic", body=dynamic_post_body)
 
     def expose_geoserver_assets(self):
         """

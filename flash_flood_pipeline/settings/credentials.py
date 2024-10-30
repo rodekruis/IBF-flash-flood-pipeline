@@ -1,8 +1,10 @@
+import os
+
 # api
-API_SERVICE_URL = #fill
-API_USERNAME = #fill
-API_ADMIN_PASSWORD = #fill
+API_SERVICE_URL = os.environ["IBF_URL"]
+API_USERNAME = os.environ["ADMIN_LOGIN"]
+API_ADMIN_PASSWORD = os.environ["IBF_PASSWORD"]
 
 # malawi sensor satellite data
-SENSOR_USERNAME = #fill
-SENSOR_PASSWORD = #fill
+SENSOR_USERNAME = os.environ["SENSOR_USERNAME"]#fill
+SENSOR_PASSWORD = os.environ["SENSOR_PASSWORD"]#fill
