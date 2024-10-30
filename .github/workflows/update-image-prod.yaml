@@ -22,5 +22,5 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         push: true
-        tags: ${{ secrets.ACR_ENDPOINT }}/${{ vars.IMAGE_NAME }}:prod
+        tags: ${{ secrets.ACR_ENDPOINT }}/${{ vars.IMAGE_NAME }}:v44
         file: ./Dockerfile
