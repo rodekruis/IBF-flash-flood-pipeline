@@ -258,16 +258,16 @@ def main():
     ) = scenarios_selector.select_scenarios()
 
     # TODO: remove until next comment (testing)
-    karonga_leadtime = 1
-    karonga_events = {"MW10203": "100mm_12hr"}
+    #karonga_leadtime = 1
+    #karonga_events = {"MW10203": "100mm_12hr"}
 
-    blantyre_leadtime = 1
-    blantyre_events = {
-        "MW31533": "100mm_12hr",
-        "MW31534": "100mm_12hr",
-        "MW31532": "100mm_12hr",
-        "MW31541": "100mm_12hr",
-    }
+    #blantyre_leadtime = 1
+    #blantyre_events = {
+    #    "MW31533": "100mm_12hr",
+    #    "MW31534": "100mm_12hr",
+    #    "MW31532": "100mm_12hr",
+    #    "MW31541": "100mm_12hr",
+    #}
     # end of testing segment
 
     logger.info("step 2 finished: scenario selection")
