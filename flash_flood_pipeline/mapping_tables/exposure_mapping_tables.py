@@ -26,13 +26,6 @@ POINT_EXPOSURE_DICT = {
     "pointDataCategory": "",
 }
 
-DYNAMIC_POINT_EXPOSURE_DICT = {
-    "leadTime": "3-hour",
-    "disasterType": "flash-floods",
-    "pointDataCategory": "",
-}
-
-
 GEOSERVER_EXPOSURE_DICT = {
     "exposedFids": [],
     "leadTime": "3-hour",

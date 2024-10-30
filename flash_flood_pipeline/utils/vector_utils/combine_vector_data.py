@@ -12,7 +12,8 @@ def combine_vector_data(ta_df, data_folder, asset_type):
     Args:
         ta_df (gpd.GeoDataFrame): dataframe with TAs and their corresponding flood scenario
         data_folder (Path): Path to folder where all input data is stored
-        asset_type (str): Type of asset to be read and combined. Choose from: 'vulnerable_buildings', 'region_statistics', 'vulnerable_health_sites', 'vulnerable_roads', 'vulnerable_schools', 'vulnerable_waterpoints'
+        asset_type (str): Type of asset to be read and combined. Choose from: 'vulnerable_buildings', 'region_statistics', 'vulnerable_health_sites', 'vulnerable_roads',
+        'vulnerable_schools', 'vulnerable_waterpoints'
 
     Returns:
         merged_vector_layer (pd.DataFrame): dataset with assets and their exposure for the different TA's

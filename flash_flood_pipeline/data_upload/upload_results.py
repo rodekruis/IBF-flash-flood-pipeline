@@ -10,7 +10,6 @@ from mapping_tables.exposure_mapping_tables import (
     EXPOSURE_TYPES,
     TA_EXPOSURE_DICT,
     POINT_EXPOSURE_DICT,
-    DYNAMIC_POINT_EXPOSURE_DICT,
     GEOSERVER_EXPOSURE_DICT,
 )
 from utils.api import api_post_request
@@ -150,7 +149,9 @@ class DataUploader:
                     "disasterType": "flash-floods",
                     "leadTime": self.lead_time,
                     "key": "exposure",
-                    "dynamicPointData": [{"fid":int(fid),"value": True} for fid in exposed_fids],
+                    "dynamicPointData": [
+                        {"fid": int(fid), "value": True} for fid in exposed_fids
+                    ],
                 }
                 api_post_request("point-data/dynamic", body=dynamic_post_body)
 
