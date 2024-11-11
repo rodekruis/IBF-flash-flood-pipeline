@@ -293,7 +293,9 @@ def main():
     ]
     triggered_regions = triggered_regions.sort_values(by="lead_time", ascending=True)
 
-    date = datetime.datetime.now()
+    date = (
+        datetime.datetime.now()
+    )  # check if it is ok that the current date is generated twice, even though it is not used in the shape post request
 
     for lead_time in np.unique(triggered_regions["lead_time"].tolist()):
         triggered_regions_leadtime_filter = triggered_regions.loc[
@@ -350,7 +352,15 @@ def main():
 
     if not karonga_trigger and not rumphi_trigger and not blantyre_trigger:
         portal_resetter = DataUploader(
-            None, ta_gdf, None, None, None, None, None, None, date
+            time=None,
+            regions=ta_gdf,
+            district_name=None,
+            schools=None,
+            waterpoints=None,
+            roads=None,
+            buildings=None,
+            health_sites=None,
+            date=date,
         )
         portal_resetter.untrigger_portal()
         print("untrigger portal")
