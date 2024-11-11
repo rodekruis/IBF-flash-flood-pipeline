@@ -10,8 +10,7 @@
 secrets.py
 secrets2.py
 local_secret.py
-data/*
-test/*
+data
 *.vrt
 *.ipynb
 *.tif

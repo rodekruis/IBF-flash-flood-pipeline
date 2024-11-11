@@ -203,33 +203,27 @@ class DataUploader:
         - yesterday's sensor value
         - a reference value typical for the time of year.
         """
-        sensor_values_body = POINT_EXPOSURE_DICT
-        sensor_values_body["leadTime"] = "1-hour"
-        sensor_values_body["dynamicIndicator"] = "water-level"
-        sensor_values_body["pointDataCategory"] = "gauges"
-        sensor_values_body["key"] = "water-level"
+        for sensor_dict, post_key in [
+            (self.sensor_actual_values_dict, "water-level"),
+            (self.sensor_previous_values_dict, "water-level-previous"),
+            (self.sensor_reference_values_dict, "water-level-reference"),
+        ]:
+            values_list = []
 
-        values_list = []
+            for key, value in sensor_dict.items():
+                values_list.append({"fid": int(key), "value": value})
 
-        for key, value in self.sensor_actual_values_dict.items():
-            values_list.append({"fid": key, "value": value})
-        sensor_values_body["dynamicPointData"] = values_list
-        api_post_request("point-data/dynamic", body=sensor_values_body)
-
-        sensor_values_body["key"] = "water-level-previous"
-        values_list = []
-        for key, value in self.sensor_previous_values_dict.items():
-            values_list.append({"fid": key, "value": value})
-        sensor_values_body["dynamicPointData"] = values_list
-        api_post_request("point-data/dynamic", body=sensor_values_body)
-
-        sensor_values_body["key"] = "water-level-reference"
-        values_list = []
-        for key, value in self.sensor_reference_values_dict.items():
-            values_list.append({"fid": key, "value": value})
-        sensor_values_body["dynamicPointData"] = values_list
-        api_post_request("point-data/dynamic", body=sensor_values_body)
-
+            sensor_dynamic_body = {
+                "date": self.date.strftime(format="%Y-%m-%dT%H:%M:%S.%fZ"),
+                "leadTime": self.lead_time,
+                "key": post_key,
+                "countryCodeISO3": "MWI",
+                "disasterType": "flash-floods",
+                "pointDataCategory": "gauges",
+                "dynamicPointData": values_list,
+            }
+            api_post_request("point-data/dynamic", body=sensor_dynamic_body)
+            
     def untrigger_portal(self):
         """
         Function to untriger the portal and set exposure values of all TA's to 0
