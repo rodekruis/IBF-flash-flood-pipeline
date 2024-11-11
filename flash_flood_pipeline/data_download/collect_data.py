@@ -88,7 +88,9 @@ class dataGetter:
             + ".txt"
         )
         reference_values = pd.read_csv("data/gauge_data/sensor_info_karonga.csv")
-        fid = reference_values.loc[reference_values["key"] == "fid", "value"].item()
+        fid = int(reference_values.loc[reference_values["key"] == "fid", "value"].item())
+        print(fid, type(fid))
+        
         gauges_reference_value_dict[fid] = reference_values.loc[
             reference_values["key"] == str(month), "value"
         ].item()
@@ -119,6 +121,7 @@ class dataGetter:
             header=None,
             names=["time", "distance"],
         )
+
         gauges_actual_data_dict[fid] = (
             karonga_today["distance"].iloc[-1]
             + reference_values.loc[
@@ -227,46 +230,107 @@ class dataGetter:
 
     def get_rain_forecast(self):
         gfs_data = {}
-        # historic_start = round_to_nearest_hour(datetime.now()) - timedelta(
-        #     days=2, hours=3
-        # )
-        # historic_date_list = [
-        #     historic_start + timedelta(hours=3 * x) for x in range(18)
-        # ]
-        forecast_start = round_to_nearest_hour(datetime.now()) - timedelta(hours=9)
-        # forecast_date_list = [
-        #     forecast_start + timedelta(hours=3 * x) for x in range(30)
-        # ]
-        forecast_start_hour = round(forecast_start.hour / 6) * 6
-        if forecast_start_hour < 12:
-            forecast_start_hour = "0" + str(forecast_start_hour)
-        if forecast_start_hour == 24:
-            forecast_start_hour = "00"
-            forecast_start = forecast_start + timedelta(days=1)
-        # nc_dataset_historic = nc.Dataset(
-        # "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
-        # historic_start.strftime("%Y%m%d")
-        # )
-        # )
-        # nc_dataset_forecast = nc.Dataset(
-        # "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
-        # forecast_start.strftime("%Y%m%d"), forecast_start_hour
-        # )
-        # )
-        # latvar = nc_dataset_historic.variables["lat"][:]
-        # lat_dim = len(latvar)
-        # lonvar = nc_dataset_historic.variables["lon"][:]
-        # lon_dim = len(lonvar)
-        # latvar = np.stack([latvar for _ in range(lon_dim)], axis=0)
-        # lonvar = np.stack([lonvar for _ in range(lat_dim)], axis=1)
-        ta_gdf_4326 = self.ta_gdf.copy()
-        ta_gdf_4326.to_crs(4326, inplace=True)
-        now = datetime.now()
 
-        xds = rioxarray.open_rasterio(
-            r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(now.strftime("%Y%m%d"))
-        )
-        xds.rio.write_crs("epsg:4326", inplace=True)
+        if (
+            not expected_cosmo_forecast_path.exists()
+            or not expected_cosmo_hindcast_path.exists()
+        ):
+            # switch to gfs
+            print("GFS")
+            hindcast_start = round_to_nearest_hour(datetime.now()) - timedelta(
+                days=2, hours=3
+            )
+
+            forecast_start = round_to_nearest_hour(datetime.now()) - timedelta(hours=9)
+
+            forecast_start_hour = round(forecast_start.hour / 6) * 6
+
+            if forecast_start_hour < 12:
+                forecast_start_hour = "0" + str(forecast_start_hour)
+
+            if forecast_start_hour == 24:
+                forecast_start_hour = "00"
+                forecast_start = forecast_start + timedelta(days=1)
+
+            nc_dataset_hindcast = nc.Dataset(
+                "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
+                    hindcast_start.strftime("%Y%m%d")
+                )
+            )
+
+            nc_dataset_forecast = nc.Dataset(
+                "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
+                    forecast_start.strftime("%Y%m%d"), forecast_start_hour
+                )
+            )
+
+            latvar_hind, lonvar_hind = extract_lat_lon(ds=nc_dataset_hindcast)
+            latvar_fc, lonvar_fc = extract_lat_lon(ds=nc_dataset_forecast)
+
+            ta_gdf_4326 = self.ta_gdf.copy()
+            ta_gdf_4326.to_crs(4326, inplace=True)
+
+            ta_gdf_4326["centr"] = ta_gdf_4326.centroid
+
+            time_hindcast = [
+                datetime(year=1, month=1, day=1) + timedelta(days=d)
+                for d in nc_dataset_hindcast["time"][:]
+            ]
+
+            time_forecast = [
+                datetime(year=1, month=1, day=1) + timedelta(days=d)
+                for d in nc_dataset_forecast["time"][:]
+            ]
+
+            for _, row in ta_gdf_4326.iterrows():
+                iy_min_hist, ix_min_hist = tunnel_fast(
+                    latvar=latvar_hind,
+                    lonvar=lonvar_hind,
+                    lat0=row.centr.x,
+                    lon0=row.centr.y,
+                )
+                iy_min_fc, ix_min_fc = tunnel_fast(
+                    latvar=latvar_fc,
+                    lonvar=lonvar_fc,
+                    lat0=row.centr.x,
+                    lon0=row.centr.y,
+                )
+
+                gfs_hindcast_and_forecast = []
+
+                for ix_min, iy_min, time in [
+                    (ix_min_hist, iy_min_hist, time_hindcast),
+                    (ix_min_fc, iy_min_fc, time_forecast),
+                ]:
+                    gfs_rain_ts_cumulative = [
+                        float(x) if x != "--" else 0.0
+                        for x in nc_dataset_hindcast["apcpsfc"][:, ix_min, iy_min]
+                    ]
+                    gfs_rain_ts_incremental = [
+                        val - gfs_rain_ts_cumulative[i - 1] if i > 0 else val
+                        for i, val in enumerate(gfs_rain_ts_cumulative)
+                    ]
+                    gfs_hindcast_and_forecast.append(
+                        pd.DataFrame(
+                            data={
+                                "datetime": time,
+                                "precipitation": gfs_rain_ts_incremental,
+                            }
+                        )
+                    )
+
+                gfs_precipitation = pd.concat(gfs_hindcast_and_forecast, axis=0)
+                gfs_precipitation = gfs_precipitation.sort_values("datetime")
+                gfs_precipitation = gfs_precipitation.drop_duplicates(
+                    subset="datetime", keep="last"
+                )
+                gfs_data[row["placeCode"]] = gfs_precipitation
+        else:
+            ta_gdf_4326 = self.ta_gdf.copy()
+            ta_gdf_4326.to_crs(4326, inplace=True)
+
+            xds = rioxarray.open_rasterio(expected_cosmo_forecast_path)
+            xds.rio.write_crs("epsg:4326", inplace=True)
 
         upscale_factor = 8
         new_width = xds.rio.width * upscale_factor

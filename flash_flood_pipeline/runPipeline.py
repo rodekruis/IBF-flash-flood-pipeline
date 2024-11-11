@@ -330,17 +330,18 @@ def main():
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
-        None,
-        ta_gdf,
-        None,
-        None,
-        None,
-        None,
-        None,
-        date,
+        time=None,
+        regions=ta_gdf,
+        district_name=None,
+        schools=None,
+        waterpoints=None,
+        roads=None,
+        buildings=None,
+        health_sites=None,
         sensor_actual_values_dict=gauges_actual_data_dict,
         sensor_previous_values_dict=gauges_yesterday_dict,
         sensor_reference_values_dict=gauges_reference_value_dict,
+        date=date,
     )
     gauge_data_uploader.upload_sensor_values()
 

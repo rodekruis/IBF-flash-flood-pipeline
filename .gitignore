@@ -15,6 +15,7 @@ test/*
 *.ipynb
 *.tif
 *.tif.aux.xml
+local_secret.py
 
 # Local data files
 pipeline/data

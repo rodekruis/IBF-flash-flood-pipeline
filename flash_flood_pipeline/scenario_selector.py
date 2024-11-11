@@ -216,7 +216,7 @@ UPSTREAM_MAP = {
 
 
 class scenarioSelector:
-    """Scenario Selector class for the malawi IBF pipeline. The class converts rainfall per TA into flood 
+    """Scenario Selector class for the malawi IBF pipeline. The class converts rainfall per TA into flood
     forecast predictions. The flood forecasts are a pre-computed set of gis datasets for certain amounts of rainfall
     in a fixed time period. For TA's with a (substantial) upstream area, the precipitation over the entire upstream area is
     taken into account.
@@ -251,7 +251,7 @@ class scenarioSelector:
 
     def aggregate_upstream_tas(self, gfs_data):
         """
-        For TA's with substantial upstream areas, their forecasted precipitation is averaged with upstream precipitation. This is done based 
+        For TA's with substantial upstream areas, their forecasted precipitation is averaged with upstream precipitation. This is done based
         on the rainfall forecast values for all TA's.
 
         Args:
@@ -304,7 +304,7 @@ class scenarioSelector:
 
     def find_worst_event(self, df_target_hours):
         """
-        Takes the dataframe with all events for a single TA and determines which event (e.g., 20mm in 1 hour) will give the largest flooding. The worst event (e.g., 40mm in 2 hours over 20mm in 1 hour) is stored and used to trigger/display in the IBF system. 
+        Takes the dataframe with all events for a single TA and determines which event (e.g., 20mm in 1 hour) will give the largest flooding. The worst event (e.g., 40mm in 2 hours over 20mm in 1 hour) is stored and used to trigger/display in the IBF system.
 
         Args:
             df_target_hours (pd.DataFrame): Dataframe with rainfall intensities converted to events in the library for a single TA and only timestamps corresponding to IBF leadtimes.
@@ -340,7 +340,7 @@ class scenarioSelector:
             rumphi_events (Dict): Dictionary with the TA's of rumphi as keys and their worst event as value "20mm_12hr" format. TA's without rain are excluded
             blantyre_leadtime (int): Timing of the first flood in blantyre region (in hours from now)
             blantyre_events (Dict): Dictionary with the TA's of blantyre as keys and their worst event as value "20mm_12hr" format. TA's without rain are excluded
-            """
+        """
         event_data = self.event_selection()
         for _, df in event_data.items():
             df["time_reference"] = (

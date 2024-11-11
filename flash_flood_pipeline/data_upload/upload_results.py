@@ -9,12 +9,9 @@ from settings.base import (
 from mapping_tables.exposure_mapping_tables import (
     EXPOSURE_TYPES,
     TA_EXPOSURE_DICT,
-    POINT_EXPOSURE_DICT,
-    DYNAMIC_POINT_EXPOSURE_DICT,
     GEOSERVER_EXPOSURE_DICT,
 )
 from utils.api import api_post_request
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,23 +32,23 @@ class DataUploader:
         sensor_reference_values_dict={},
         date=datetime.datetime.now(),
     ):
-    """Class to upload forecasted flooding for all vector datasets (e.g., schools, waterpoints, TA's) and to upload sensor values. Raster uploads are done through a separate
-    class (RasterUploader)
+        """Class to upload forecasted flooding for all vector datasets (e.g., schools, waterpoints, TA's) and to upload sensor values. Raster uploads are done through a separate
+        class (RasterUploader)
 
-    Args:
-        time (str): leadtime in string format as expected by the IBF-portal: "1-hour"
-        regions (gpd.GeoDataFrame): dataframe with all TA's including their exposure values (e.g., nr of affected people) for this district
-        district_name (str): Name used in the trigger warning (e.g. "Rumphi" or "Karonga")
-        schools (gpd.GeoDataFrame, points): all schools in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-        waterpoints (gpd.GeoDataFrame, points): all waterpoints in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-        roads (gpd.GeoDataFrame, lines): all roads in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-        buildings (gpd.GeoDataFrame, polygons): all buildings in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-        health_sites (gpd.GeoDataFrame, points): all health_sites in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
-        sensor_actual_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the latest measured value as value. 
-        sensor_previous_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the measured value of 24 hours ago as value. 
-        sensor_reference_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the Reference (typical) value for this month as value.
-        date (datetime.datetime): Reference datetime to be send to the IBF portal
-    """
+        Args:
+            time (str): leadtime in string format as expected by the IBF-portal: "1-hour"
+            regions (gpd.GeoDataFrame): dataframe with all TA's including their exposure values (e.g., nr of affected people) for this district
+            district_name (str): Name used in the trigger warning (e.g. "Rumphi" or "Karonga")
+            schools (gpd.GeoDataFrame, points): all schools in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
+            waterpoints (gpd.GeoDataFrame, points): all waterpoints in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
+            roads (gpd.GeoDataFrame, lines): all roads in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
+            buildings (gpd.GeoDataFrame, polygons): all buildings in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
+            health_sites (gpd.GeoDataFrame, points): all health_sites in the TA's concerned with their exposure status (no risk, moderate risk, high risk)
+            sensor_actual_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the latest measured value as value.
+            sensor_previous_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the measured value of 24 hours ago as value.
+            sensor_reference_values_dict (Dict): Dictionary with sensor id in the IBF portal as key and the Reference (typical) value for this month as value.
+            date (datetime.datetime): Reference datetime to be send to the IBF portal
+        """
         self.TA_exposure = regions
         self.schools_exposure = schools
         self.waterpoints_exposure = waterpoints
@@ -151,7 +148,6 @@ class DataUploader:
                 "dynamicPointData": [{int(fid): True} for fid in exposed_fids],
             }
             api_post_request("point-data/dynamic", body=dynamic_post_body)
-      
 
     def expose_geoserver_assets(self):
         """
@@ -201,7 +197,42 @@ class DataUploader:
         - yesterday's sensor value
         - a reference value typical for the time of year.
         """
-        sensor_values_body = POINT_EXPOSURE_DICT
+
+        for sensor_dict, post_key in [
+            (self.sensor_actual_values_dict, "water-level"),
+            (self.sensor_previous_values_dict, "water-level-previous"),
+            (self.sensor_reference_values_dict, "water-level-reference"),
+        ]:
+            values_list = []
+
+            for key, value in sensor_dict.items():
+                values_list.append({"fid": int(key), "value": value})
+
+            sensor_dynamic_body = {
+                "date": self.date.strftime(format="%Y-%m-%dT%H:%M:%S.%fZ"),
+                "leadTime": self.lead_time,
+                "key": post_key,
+                "countryCodeISO3": "MWI",
+                "disasterType": "flash-floods",
+                "pointDataCategory": "gauges",
+                "dynamicPointData": values_list,
+            }
+            print(sensor_dynamic_body)
+            api_post_request("point-data/dynamic", body=sensor_dynamic_body)
+
+    def upload_sensor_values_WIP(self):
+        """
+        upload sensor values to IBF system. Uses the point-data/dynamic endpoint to send:
+        - current sensor value
+        - yesterday's sensor value
+        - a reference value typical for the time of year.
+        """
+        sensor_values_body = {
+            "leadTime": "1-hour",
+            "countryCodeISO3": "MWI",
+            "disasterType": "flash-floods",
+            "pointDataCategory": "",
+        }
         sensor_values_body["leadTime"] = "1-hour"
         sensor_values_body["dynamicIndicator"] = "water-level"
         sensor_values_body["pointDataCategory"] = "gauges"
@@ -212,6 +243,7 @@ class DataUploader:
         for key, value in self.sensor_actual_values_dict.items():
             values_list.append({"fid": key, "value": value})
         sensor_values_body["dynamicPointData"] = values_list
+        print(sensor_values_body)
         api_post_request("point-data/dynamic", body=sensor_values_body)
 
         sensor_values_body["key"] = "water-level-previous"
@@ -219,6 +251,7 @@ class DataUploader:
         for key, value in self.sensor_previous_values_dict.items():
             values_list.append({"fid": key, "value": value})
         sensor_values_body["dynamicPointData"] = values_list
+        print(sensor_values_body)
         api_post_request("point-data/dynamic", body=sensor_values_body)
 
         sensor_values_body["key"] = "water-level-reference"
@@ -226,6 +259,7 @@ class DataUploader:
         for key, value in self.sensor_reference_values_dict.items():
             values_list.append({"fid": key, "value": value})
         sensor_values_body["dynamicPointData"] = values_list
+        print(sensor_values_body)
         api_post_request("point-data/dynamic", body=sensor_values_body)
 
     def untrigger_portal(self):
