@@ -56,7 +56,8 @@ class dataGetter:
             + ".txt"
         )
         reference_values = pd.read_csv("data/gauge_data/sensor_info_karonga.csv")
-        fid = reference_values.loc[reference_values["key"] == "fid", "value"].item()
+        fid = int(reference_values.loc[reference_values["key"] == "fid", "value"].item())
+        
         gauges_reference_value_dict[fid] = reference_values.loc[
             reference_values["key"] == str(month), "value"
         ].item()
