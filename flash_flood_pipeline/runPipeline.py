@@ -365,8 +365,8 @@ def main():
         portal_resetter.untrigger_portal()
         print("untrigger portal")
     else:
-        print("would have notified")
-        # data_uploader.send_notifications()
+        # print("would have notified")
+        data_uploader.send_notifications()
 
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
