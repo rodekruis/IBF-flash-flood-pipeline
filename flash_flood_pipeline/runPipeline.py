@@ -18,7 +18,7 @@ import pandas as pd
 
 import sys
 
-sys.path.append(r"d:\VSCode\IBF_FLASH_FLOOD_PIPELINE")
+sys.path.append(r"d:\VSCode\IBF-flash-flood-pipeline")
 
 logger = logging.getLogger(__name__)
 
@@ -138,14 +138,22 @@ def combine_events_and_upload_to_ibf(
     )
     vector_datasets = {}
 
-    ta_gdf = ta_gdf[ta_gdf["placeCode"].isin(list(events.keys()))]
-
+    ta_gdf = ta_gdf.loc[ta_gdf["placeCode"].isin(list(events.keys()))]
+    
     for asset_type in ASSET_TYPES:
         for key, value in events.items():
             ta_gdf.loc[ta_gdf["placeCode"] == key, "scenario"] = value
-
+        
         vector_datasets[asset_type] = combine_vector_data(
             ta_gdf, DATA_FOLDER, asset_type
+        )
+    for key, val in vector_datasets.items():
+
+        if key != "region_statistics":
+            val["id"] = pd.to_numeric(val["id"])
+
+        val.to_file(
+            Path(r"d:\VSCode\IBF-flash-flood-pipeline\data") / f"{key}_mock_event.gpkg"
         )
 
     logger.info(
@@ -173,16 +181,17 @@ def combine_events_and_upload_to_ibf(
         "step 4 started: upload and trigger tas, expose point assets, expose geoserver assets, upload raster file waterdepth"
     )
     data_uploader = DataUploader(
-        str(lead_time) + "-hour",
-        vector_datasets["region_statistics"],
-        districtname,
-        vector_datasets["vulnerable_schools"],
-        vector_datasets["vulnerable_waterpoints"],
-        vector_datasets["vulnerable_roads"],
-        vector_datasets["vulnerable_buildings"],
-        vector_datasets["vulnerable_health_sites"],
-        date,
+        time=str(lead_time) + "-hour",
+        regions=vector_datasets["region_statistics"],
+        district_name=districtname,
+        schools=vector_datasets["vulnerable_schools"],
+        waterpoints=vector_datasets["vulnerable_waterpoints"],
+        roads=vector_datasets["vulnerable_roads"],
+        buildings=vector_datasets["vulnerable_buildings"],
+        health_sites=vector_datasets["vulnerable_health_sites"],
+        date=date,
     )
+    
     data_uploader.upload_and_trigger_tas()
     data_uploader.expose_point_assets()
     data_uploader.expose_geoserver_assets()
@@ -258,16 +267,39 @@ def main():
     ) = scenarios_selector.select_scenarios()
 
     # # TODO: remove until next comment (testing)
-    # karonga_leadtime = 1
-    # karonga_events = {"MW10203": "100mm_12hr"}
 
+    blantyre_events = {}
+    karonga_events = {}
+    rumphi_events = {}
+    blantyre_leadtime = None
+    karonga_leadtime = None
+    rumphi_leadtime = None
+    
+    # karonga_leadtime = 2
+    # karonga_events = {"MW10203": "200mm_24hr"}
+    
     # blantyre_leadtime = 1
     # blantyre_events = {
-    #     "MW31533": "100mm_12hr",
-    #     "MW31534": "100mm_12hr",
-    #     "MW31532": "100mm_12hr",
-    #     "MW31541": "100mm_12hr",
+    #     "MW31533": "200mm_24hr",
+    #     # "MW31534": "200mm_24hr",
+    #     # "MW31532": "200mm_24hr",
+    #     # "MW31531": "200mm_24hr",
+    #     # "MW31537": "200mm_24hr",
     # }
+    
+    # # mock
+    blantyre_leadtime = 1
+    blantyre_events = {
+        "MW31541": "200mm_24hr",
+        "MW31548": "200mm_24hr",
+        "MW31549": "200mm_24hr",
+        "MW31542": "200mm_24hr",
+        "MW31536": "200mm_24hr",
+        "MW31535": "200mm_24hr",
+        "MW31534": "200mm_24hr",
+        "MW31547": "200mm_24hr",
+    }
+    
     # end of testing segment
 
     logger.info("step 2 finished: scenario selection")
@@ -294,7 +326,7 @@ def main():
     triggered_regions = triggered_regions.sort_values(by="lead_time", ascending=True)
 
     date = (
-        datetime.datetime.now()
+        datetime.datetime.now(tz=datetime.timezone.utc)
     )  # check if it is ok that the current date is generated twice, even though it is not used in the shape post request
 
     for lead_time in np.unique(triggered_regions["lead_time"].tolist()):
@@ -331,7 +363,7 @@ def main():
             )
 
     # step (3a) - vector data: clip and stitch data of assets
-    date = datetime.datetime.now()
+    #date = datetime.datetime.now()
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
@@ -349,6 +381,10 @@ def main():
         date=date,
     )
     gauge_data_uploader.upload_sensor_values()
+
+    # karonga_trigger = False
+    # rumphi_trigger = False
+    # blantyre_trigger = False
 
     if not karonga_trigger and not rumphi_trigger and not blantyre_trigger:
         portal_resetter = DataUploader(

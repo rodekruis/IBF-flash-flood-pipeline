@@ -20,7 +20,7 @@ def combine_vector_data(ta_df, data_folder, asset_type):
     """
     vector_layers = []
     ta_gdf_3857 = ta_df.copy().to_crs(3857)
-
+    
     for _, row in ta_gdf_3857.iterrows():
         if row["scenario"] != "":
             if asset_type != "region_statistics":
@@ -42,16 +42,18 @@ def combine_vector_data(ta_df, data_folder, asset_type):
                 ]
 
                 vector_layers.append(vector_layer_of_interest_subset)
-        if asset_type == "region_statistics":
-            region_statistics_template = gpd.read_file(
-                rf"data/static_data/{ENVIRONMENT}/region_statistics_zeroes.gpkg"
-            )
-            region_statistics_template = region_statistics_template.rename(
-                columns={"ADM3_PCODE": "placeCode"}
-            )
-            vector_layers.append(region_statistics_template)
+                
+    if asset_type == "region_statistics":
+        region_statistics_template = gpd.read_file(
+            rf"data/static_data/{ENVIRONMENT}/region_statistics_zeroes.gpkg"
+        )
+        region_statistics_template = region_statistics_template.rename(
+            columns={"ADM3_PCODE": "placeCode"}
+        )
+        vector_layers.append(region_statistics_template)
 
     merged_vector_layer = pd.concat(vector_layers)
+
     if asset_type == "region_statistics":
         merged_vector_layer = merged_vector_layer.drop_duplicates(
             subset="placeCode", keep="first"

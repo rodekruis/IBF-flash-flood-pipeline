@@ -2,7 +2,7 @@ from pathlib import Path
 
 # references
 DATA_FOLDER = Path("data/input_data")
-ENVIRONMENT = "prod"  # can be prod or test
+ENVIRONMENT = "test"  # can be prod or test
 
 # general
 ASSET_TYPES = [
@@ -26,29 +26,29 @@ RUMPHI_PLACECODES = [
 ]
 
 BLANTYRE_PLACECODES = [
-    "31546",
-    "31545",
-    "31541",
-    "31548",
-    "31552",
-    "31540",
-    "31549",
-    "31543",
-    "31533",
-    "31539",
-    "31531",
-    "31553",
-    "31544",
-    "31542",
-    "31551",
-    "31537",
-    "31536",
-    "31535",
-    "31534",
-    "31538",
-    "31547",
-    "31550",
-    "31532",
+    "MW31546",
+    "MW31545",
+    "MW31541",
+    "MW31548",
+    "MW31552",
+    "MW31540",
+    "MW31549",
+    "MW31543",
+    "MW31533",
+    "MW31539",
+    "MW31531",
+    "MW31553",
+    "MW31544",
+    "MW31542",
+    "MW31551",
+    "MW31537",
+    "MW31536",
+    "MW31535",
+    "MW31534",
+    "MW31538",
+    "MW31547",
+    "MW31550",
+    "MW31532",
 ]
 
 SMALL_LAGTIME_PLACECODES = [

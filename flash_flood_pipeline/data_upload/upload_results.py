@@ -1,10 +1,14 @@
 import logging
 import datetime
+import pandas as pd
 from settings.base import (
     ALERT_THRESHOLD_PARAMETER,
     ALERT_THRESHOLD_VALUE,
     COUNTRY_CODE_ISO3,
     DISASTER_TYPE,
+    KARONGA_PLACECODES,
+    RUMPHI_PLACECODES,
+    BLANTYRE_PLACECODES,
 )
 from mapping_tables.exposure_mapping_tables import (
     EXPOSURE_TYPES,
@@ -72,47 +76,81 @@ class DataUploader:
         exposure type is larger than the trigger threshold value (nr people affected >20), by sending an API-request (endpoint: admin-area-dynamic-data/exposure)
         to the IBF-portal with the dynamic indicator "alert_threshold" = 1
         """
-        for key, value in EXPOSURE_TYPES.items():
-            exposure_df = self.TA_exposure.astype({key: "float"}).astype({key: "int"})
-            body = TA_EXPOSURE_DICT
-            body["dynamicIndicator"] = value
-            body["leadTime"] = self.lead_time
-            body["eventName"] = self.district_name
-            body["exposurePlaceCodes"] = (
-                exposure_df[["placeCode", key]]
-                .rename(columns={key: "amount"})
-                .dropna()
-                .to_dict("records")
-            )
-            body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            api_post_request("admin-area-dynamic-data/exposure", body=body)
+        ta_exposure_trigger = self.TA_exposure.copy()
 
-        df_triggered_tas = self.TA_exposure[["placeCode", ALERT_THRESHOLD_PARAMETER]]
-        # df_triggered_tas = df_triggered_tas.fillna()
-        for index, row in df_triggered_tas.iterrows():
-            if row[ALERT_THRESHOLD_PARAMETER] is None:
-                df_triggered_tas.at[index, "trigger_value"] = 0
+        def determine_ta_trigger_state(row):
+            if pd.isnull(row[ALERT_THRESHOLD_PARAMETER]):
+                return 0
             elif row[
                 ALERT_THRESHOLD_PARAMETER
             ] > ALERT_THRESHOLD_VALUE and self.lead_time not in [
                 "24-hour",
                 "48-hour",
-            ]:  # double check implementation
-                df_triggered_tas.at[index, "trigger_value"] = 1
+            ]:
+                return 1
             else:
-                df_triggered_tas.at[index, "trigger_value"] = 0
-        body = TA_EXPOSURE_DICT
-        body["dynamicIndicator"] = "alert_threshold"
-        body["leadTime"] = self.lead_time
-        body["eventName"] = self.district_name
-        body["exposurePlaceCodes"] = (
-            df_triggered_tas[["placeCode", "trigger_value"]]
-            .rename(columns={"trigger_value": "amount"})
-            .dropna()
-            .to_dict("records")
+                return 0
+
+        ta_exposure_trigger["trigger_value"] = ta_exposure_trigger.apply(
+            lambda row: determine_ta_trigger_state(row), axis=1
         )
-        body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        api_post_request("admin-area-dynamic-data/exposure", body=body)
+        df_triggered_tas_blantyre = ta_exposure_trigger.loc[
+            ta_exposure_trigger["placeCode"].isin(BLANTYRE_PLACECODES)
+        ]
+        df_triggered_tas_karonga = ta_exposure_trigger.loc[
+            ta_exposure_trigger["placeCode"].isin(KARONGA_PLACECODES)
+        ]
+        df_triggered_tas_rumphi = ta_exposure_trigger.loc[
+            ta_exposure_trigger["placeCode"].isin(RUMPHI_PLACECODES)
+        ]
+
+        event_mapping = {
+            "Blantyre City": df_triggered_tas_blantyre,
+            "Karonga": df_triggered_tas_karonga,
+            "Rumphi": df_triggered_tas_rumphi,
+        }
+
+        for distr_name, triggered_tas in event_mapping.items():
+            exposed_tas = triggered_tas.loc[triggered_tas["trigger_value"] == 1]
+
+            if len(exposed_tas) > 0:
+                print(distr_name)
+                print(exposed_tas)
+
+                for key, value in EXPOSURE_TYPES.items():
+                    exposure_df = exposed_tas.astype({key: "float"}).astype(
+                        {key: "int"}
+                    )
+                    exposure_df[key] = exposure_df.apply(
+                        lambda row: 0 if row[key] < 0 else row[key], axis=1
+                    )
+                    body = TA_EXPOSURE_DICT
+                    body["dynamicIndicator"] = value
+                    body["leadTime"] = self.lead_time
+                    body["eventName"] = distr_name
+                    body["exposurePlaceCodes"] = (
+                        exposure_df[["placeCode", key]]
+                        .rename(columns={key: "amount"})
+                        .dropna()
+                        .to_dict("records")
+                    )
+                    body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    print(body)
+                    api_post_request("admin-area-dynamic-data/exposure", body=body)
+
+                body = TA_EXPOSURE_DICT
+                body["dynamicIndicator"] = "alert_threshold"
+                body["leadTime"] = self.lead_time
+                body["eventName"] = distr_name
+                body["exposurePlaceCodes"] = (
+                    exposed_tas[["placeCode", "trigger_value"]]
+                    .rename(columns={"trigger_value": "amount"})
+                    .dropna()
+                    .to_dict("records")
+                )
+                body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+                print(body)
+                api_post_request("admin-area-dynamic-data/exposure", body=body)
 
     def expose_point_assets(self):
         """
@@ -170,7 +208,7 @@ class DataUploader:
         exposed_roads_body["exposedFids"] = exposed_roads
         exposed_roads_body["linesDataCategory"] = "roads"
         exposed_roads_body["leadTime"] = self.lead_time
-        logger.info(exposed_roads_body)
+        # logger.info(exposed_roads_body)
         api_post_request("lines-data/exposure-status", body=exposed_roads_body)
 
         exposed_buildings = list(
@@ -183,7 +221,7 @@ class DataUploader:
         exposed_buildings_body["exposedFids"] = exposed_buildings
         exposed_buildings_body["linesDataCategory"] = "buildings"
         exposed_buildings_body["leadTime"] = self.lead_time
-        logger.info(exposed_buildings_body)
+        # logger.info(exposed_buildings_body)
         api_post_request("lines-data/exposure-status", body=exposed_buildings_body)
 
     def send_notifications(self):
@@ -223,28 +261,36 @@ class DataUploader:
                 "dynamicPointData": values_list,
             }
             api_post_request("point-data/dynamic", body=sensor_dynamic_body)
-            
+
     def untrigger_portal(self):
         """
         Function to untriger the portal and set exposure values of all TA's to 0
         Function is called everytime the pipeline is executed but no trigger occurs.
         """
-        body = TA_EXPOSURE_DICT
-        body["dynamicIndicator"] = "alert_threshold"
-        self.TA_exposure["amount"] = 0
-        body["exposurePlaceCodes"] = (
-            self.TA_exposure[["placeCode", "amount"]].dropna().to_dict("records")
-        )
-        body["leadTime"] = "1-hour"
-        body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        api_post_request("admin-area-dynamic-data/exposure", body=body)
+
+        untrigger_ta = self.TA_exposure.copy()
+        untrigger_ta["amount"] = 0
 
         body = TA_EXPOSURE_DICT
-        body["dynamicIndicator"] = "population_affected"
-        self.TA_exposure["amount"] = 0
+        body["dynamicIndicator"] = "population_affected"  # "population_affected"
+
         body["exposurePlaceCodes"] = (
-            self.TA_exposure[["placeCode", "amount"]].dropna().to_dict("records")
+            untrigger_ta[["placeCode", "amount"]].dropna().to_dict("records")
         )
         body["leadTime"] = "1-hour"
         body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        body["eventName"] = None
+
+        api_post_request("admin-area-dynamic-data/exposure", body=body)
+
+        #############
+        body = TA_EXPOSURE_DICT
+        body["dynamicIndicator"] = "alert_threshold"
+        body["exposurePlaceCodes"] = (
+            untrigger_ta[["placeCode", "amount"]].dropna().to_dict("records")
+        )
+        body["leadTime"] = "1-hour"
+        body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        body["eventName"] = None
+
         api_post_request("admin-area-dynamic-data/exposure", body=body)
