@@ -21,8 +21,6 @@ def api_authenticate():
         API_LOGIN_URL,
         data=[("email", API_USERNAME), ("password", API_ADMIN_PASSWORD)],
     )
-    print(login_response.text)
-    print(login_response.json())
     return login_response.json()["user"]["token"]
 
 
