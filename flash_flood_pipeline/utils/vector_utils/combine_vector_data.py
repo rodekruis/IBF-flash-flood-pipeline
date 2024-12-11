@@ -18,43 +18,54 @@ def combine_vector_data(ta_df, data_folder, asset_type):
     Returns:
         merged_vector_layer (pd.DataFrame): dataset with assets and their exposure for the different TA's
     """
-    vector_layers = []
+
     ta_gdf_3857 = ta_df.copy().to_crs(3857)
 
-    for _, row in ta_gdf_3857.iterrows():
-        if row["scenario"] != "":
-            if asset_type != "region_statistics":
+    if asset_type == "region_statistics":
+        region_statistics_template = gpd.read_file(
+            rf"data/static_data/{ENVIRONMENT}/region_statistics_zeroes.gpkg"
+        )
+        region_statistics_template = region_statistics_template.rename(
+            columns={"ADM3_PCODE": "placeCode"}
+        )
+        region_statistics_untriggered_tas = region_statistics_template.loc[
+            ~region_statistics_template["placeCode"].isin(
+                ta_gdf_3857["placeCode"].tolist()
+            )
+        ]
+
+        region_statistics_collection = [region_statistics_untriggered_tas]
+
+        for _, row in ta_gdf_3857.iterrows():
+            vector_layer_of_interest = gpd.read_file(
+                str(data_folder / row["scenario"] / asset_type) + ".gpkg"
+            )
+
+            vector_layer_of_interest = vector_layer_of_interest.fillna(0)
+            vector_layer_of_interest_subset = vector_layer_of_interest[
+                vector_layer_of_interest["placeCode"] == row["placeCode"]
+            ]
+            region_statistics_collection.append(vector_layer_of_interest_subset)
+
+        merged_vector_layer = pd.concat(region_statistics_collection, axis=0)
+
+    else:
+        vector_layers = []
+
+        for _, row in ta_gdf_3857.iterrows():
+            if row["scenario"] != "":
                 vector_layer_of_interest = gpd.read_file(
                     str(data_folder / row["scenario"] / asset_type) + ".gpkg",
                     mask=row["geometry"],
                 )
-                vector_layers.append(
-                    gpd.clip(vector_layer_of_interest, row["geometry"])
-                )
-            else:
-                vector_layer_of_interest = gpd.read_file(
-                    str(data_folder / row["scenario"] / asset_type) + ".gpkg"
-                )
+                features_within_ta = gpd.clip(vector_layer_of_interest, row["geometry"])
 
-                vector_layer_of_interest = vector_layer_of_interest.fillna(0)
-                vector_layer_of_interest_subset = vector_layer_of_interest[
-                    vector_layer_of_interest["placeCode"] == row["placeCode"]
-                ]
+                if len(features_within_ta) > 0:
+                    features_within_ta_filtered = features_within_ta[
+                        ["id", "vulnerability"]
+                    ]
+                    vector_layers.append(features_within_ta_filtered)
 
-                vector_layers.append(vector_layer_of_interest_subset)
-        if asset_type == "region_statistics":
-            region_statistics_template = gpd.read_file(
-                rf"data/static_data/{ENVIRONMENT}/region_statistics_zeroes.gpkg"
-            )
-            region_statistics_template = region_statistics_template.rename(
-                columns={"ADM3_PCODE": "placeCode"}
-            )
-            vector_layers.append(region_statistics_template)
-
-    merged_vector_layer = pd.concat(vector_layers)
-    if asset_type == "region_statistics":
-        merged_vector_layer = merged_vector_layer.drop_duplicates(
-            subset="placeCode", keep="first"
-        )
+        merged_vector_layer = pd.concat(vector_layers)
 
     return merged_vector_layer

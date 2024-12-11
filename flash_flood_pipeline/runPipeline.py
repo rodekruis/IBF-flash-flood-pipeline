@@ -12,13 +12,14 @@ from data_upload.raster_uploader import RasterUploader
 from utils.raster_utils.clip_rasters_on_ta import clip_rasters_on_ta
 from utils.raster_utils.merge_rasters_gdal import merge_rasters_gdal
 from utils.vector_utils.combine_vector_data import combine_vector_data
+from utils.api import api_post_request
 
 from scenario_selector import scenarioSelector
 import pandas as pd
 
 import sys
 
-sys.path.append(r"d:\VSCode\IBF_FLASH_FLOOD_PIPELINE")
+sys.path.append(r"d:\VSCode\IBF-flash-flood-pipeline")
 
 logger = logging.getLogger(__name__)
 
@@ -138,15 +139,23 @@ def combine_events_and_upload_to_ibf(
     )
     vector_datasets = {}
 
-    ta_gdf = ta_gdf[ta_gdf["placeCode"].isin(list(events.keys()))]
+    event_ta_gdf = ta_gdf.loc[ta_gdf["placeCode"].isin(list(events.keys()))].copy()
 
     for asset_type in ASSET_TYPES:
         for key, value in events.items():
-            ta_gdf.loc[ta_gdf["placeCode"] == key, "scenario"] = value
+            event_ta_gdf.loc[event_ta_gdf["placeCode"] == key, "scenario"] = value
 
         vector_datasets[asset_type] = combine_vector_data(
-            ta_gdf, DATA_FOLDER, asset_type
+            event_ta_gdf, DATA_FOLDER, asset_type
         )
+    # for key, val in vector_datasets.items():
+
+    #     if key != "region_statistics":
+    #         val["id"] = pd.to_numeric(val["id"])
+
+    #     val.to_file(
+    #         Path(r"d:\VSCode\IBF-flash-flood-pipeline\data") / f"{key}_mock_event.gpkg"
+    #     )
 
     logger.info(
         "step 3a finished for vector data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -156,7 +165,9 @@ def combine_events_and_upload_to_ibf(
     logger.info(
         "step 3b started for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
     )
-    raster_paths = clip_rasters_on_ta(ta_gdf, DATA_FOLDER, Path("data/temp_rasters"))
+    raster_paths = clip_rasters_on_ta(
+        event_ta_gdf, DATA_FOLDER, Path("data/temp_rasters")
+    )
 
     if not skip_depth_upload:
         raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
@@ -173,16 +184,17 @@ def combine_events_and_upload_to_ibf(
         "step 4 started: upload and trigger tas, expose point assets, expose geoserver assets, upload raster file waterdepth"
     )
     data_uploader = DataUploader(
-        str(lead_time) + "-hour",
-        vector_datasets["region_statistics"],
-        districtname,
-        vector_datasets["vulnerable_schools"],
-        vector_datasets["vulnerable_waterpoints"],
-        vector_datasets["vulnerable_roads"],
-        vector_datasets["vulnerable_buildings"],
-        vector_datasets["vulnerable_health_sites"],
-        date,
+        time=str(lead_time) + "-hour",
+        regions=vector_datasets["region_statistics"],
+        district_name=districtname,
+        schools=vector_datasets["vulnerable_schools"],
+        waterpoints=vector_datasets["vulnerable_waterpoints"],
+        roads=vector_datasets["vulnerable_roads"],
+        buildings=vector_datasets["vulnerable_buildings"],
+        health_sites=vector_datasets["vulnerable_health_sites"],
+        date=date,
     )
+
     data_uploader.upload_and_trigger_tas()
     data_uploader.expose_point_assets()
     data_uploader.expose_geoserver_assets()
@@ -257,19 +269,6 @@ def main():
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
 
-    # # TODO: remove until next comment (testing)
-    # karonga_leadtime = 1
-    # karonga_events = {"MW10203": "100mm_12hr"}
-
-    # blantyre_leadtime = 1
-    # blantyre_events = {
-    #     "MW31533": "100mm_12hr",
-    #     "MW31534": "100mm_12hr",
-    #     "MW31532": "100mm_12hr",
-    #     "MW31541": "100mm_12hr",
-    # }
-    # end of testing segment
-
     logger.info("step 2 finished: scenario selection")
     logger.info(str(datetime.datetime.now()))
 
@@ -293,8 +292,8 @@ def main():
     ]
     triggered_regions = triggered_regions.sort_values(by="lead_time", ascending=True)
 
-    date = (
-        datetime.datetime.now()
+    date = datetime.datetime.now(
+        tz=datetime.timezone.utc
     )  # check if it is ok that the current date is generated twice, even though it is not used in the shape post request
 
     for lead_time in np.unique(triggered_regions["lead_time"].tolist()):
@@ -331,7 +330,7 @@ def main():
             )
 
     # step (3a) - vector data: clip and stitch data of assets
-    date = datetime.datetime.now()
+    # date = datetime.datetime.now()
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
@@ -364,10 +363,18 @@ def main():
         )
         portal_resetter.untrigger_portal()
         print("untrigger portal")
-    else:
-        # print("would have notified")
-        data_uploader.send_notifications()
 
+    logger.info("Closing Events...")
+
+    api_post_request(
+        "event/close-events",
+        body={
+            "countryCodeISO3": "MWI",
+            "disasterType": "flash-floods",
+            "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+    )
+    gauge_data_uploader.send_notifications()
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
 
