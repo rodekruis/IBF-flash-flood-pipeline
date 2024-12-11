@@ -138,7 +138,7 @@ def combine_events_and_upload_to_ibf(
         "step 3a started for vector data: clip and stitch data from one scenario per ta to one file for all tas together"
     )
     vector_datasets = {}
-    print(additional_raster_paths, skip_depth_upload)
+
     event_ta_gdf = ta_gdf.loc[ta_gdf["placeCode"].isin(list(events.keys()))].copy()
 
     for asset_type in ASSET_TYPES:
