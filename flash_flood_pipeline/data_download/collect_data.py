@@ -56,8 +56,10 @@ class dataGetter:
             + ".txt"
         )
         reference_values = pd.read_csv("data/gauge_data/sensor_info_karonga.csv")
-        fid = int(reference_values.loc[reference_values["key"] == "fid", "value"].item())
-        
+        fid = int(
+            reference_values.loc[reference_values["key"] == "fid", "value"].item()
+        )
+
         gauges_reference_value_dict[fid] = reference_values.loc[
             reference_values["key"] == str(month), "value"
         ].item()
@@ -115,9 +117,12 @@ class dataGetter:
                 + str(sensor)
                 + ".json"
             )
+
             data_file_today = sensor_filtered_list[-1]
+
             with open("data/gauge_data/" + data_file_today) as json_file:
                 data = json.load(json_file)
+
             last_non_empty = [i for i in data["data"] if "Wlev" in i][-1]
             reference_values = pd.read_csv(
                 "data/gauge_data/sensor_info_{}.csv".format(str(sensor))

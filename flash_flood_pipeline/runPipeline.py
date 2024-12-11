@@ -138,13 +138,13 @@ def combine_events_and_upload_to_ibf(
         "step 3a started for vector data: clip and stitch data from one scenario per ta to one file for all tas together"
     )
     vector_datasets = {}
-
+    print(additional_raster_paths, skip_depth_upload)
     event_ta_gdf = ta_gdf.loc[ta_gdf["placeCode"].isin(list(events.keys()))].copy()
 
     for asset_type in ASSET_TYPES:
         for key, value in events.items():
             event_ta_gdf.loc[event_ta_gdf["placeCode"] == key, "scenario"] = value
- 
+
         vector_datasets[asset_type] = combine_vector_data(
             event_ta_gdf, DATA_FOLDER, asset_type
         )
@@ -165,7 +165,9 @@ def combine_events_and_upload_to_ibf(
     logger.info(
         "step 3b started for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
     )
-    raster_paths = clip_rasters_on_ta(event_ta_gdf, DATA_FOLDER, Path("data/temp_rasters"))
+    raster_paths = clip_rasters_on_ta(
+        event_ta_gdf, DATA_FOLDER, Path("data/temp_rasters")
+    )
 
     if not skip_depth_upload:
         raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
@@ -267,42 +269,6 @@ def main():
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
 
-    # # TODO: remove until next comment (testing)
-
-    blantyre_events = {}
-    karonga_events = {}
-    rumphi_events = {}
-    blantyre_leadtime = None
-    karonga_leadtime = None
-    rumphi_leadtime = None
-
-    # karonga_leadtime = 2
-    # karonga_events = {"MW10203": "200mm_24hr"}
-
-    # blantyre_leadtime = 1
-    # blantyre_events = {
-    #     "MW31533": "200mm_24hr",
-    #     # "MW31534": "200mm_24hr",
-    #     # "MW31532": "200mm_24hr",
-    #     # "MW31531": "200mm_24hr",
-    #     # "MW31537": "200mm_24hr",
-    # }
-
-    # # mock
-    # blantyre_leadtime = 1
-    # blantyre_events = {
-    #     "MW31541": "200mm_24hr",
-    #     "MW31548": "200mm_24hr",
-    #     "MW31549": "200mm_24hr",
-    #     "MW31542": "200mm_24hr",
-    #     "MW31536": "200mm_24hr",
-    #     "MW31535": "200mm_24hr",
-    #     "MW31534": "200mm_24hr",
-    #     "MW31547": "200mm_24hr",
-    # }
-
-    # end of testing segment
-
     logger.info("step 2 finished: scenario selection")
     logger.info(str(datetime.datetime.now()))
 
@@ -382,10 +348,6 @@ def main():
         date=date,
     )
     gauge_data_uploader.upload_sensor_values()
-
-    # karonga_trigger = False
-    # rumphi_trigger = False
-    # blantyre_trigger = False
 
     if not karonga_trigger and not rumphi_trigger and not blantyre_trigger:
         portal_resetter = DataUploader(

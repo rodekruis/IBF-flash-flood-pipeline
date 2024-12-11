@@ -199,5 +199,5 @@ SEBA_URL = "https://www.seba-hydrocenter.de/projects/listing.php?id={}"
 # meteo
 GFS_URL = "https://api.open-meteo.com/v1/gfs"
 # METEO_SENSOR_LIST = [125720411]
-WATERLEVEL_SENSOR = [125720411]
+WATERLEVEL_SENSOR = [125720411, 125718945]
 METEO_RAIN_SENSOR = "124107670"
