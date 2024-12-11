@@ -374,7 +374,7 @@ def main():
             "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     )
-    gauge_data_uploader.send_notifications()
+    # gauge_data_uploader.send_notifications()
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
 
