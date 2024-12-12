@@ -82,7 +82,7 @@ THRESHOLD_CORRECTION_VALUES = {
     "MW31547": 47.0,
     "MW31550": 248.0,
     "MW31532": 239.0,
-}  # based on 50mm in 24 hours event, assuming this event has no impact
+}  # based on 20mm in 2 hours event, assuming this event has no impact
 
 SMALL_LAGTIME_PLACECODES = [
     "MW10420",
