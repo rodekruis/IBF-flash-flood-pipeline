@@ -4,7 +4,13 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import logging
-from settings.base import DATA_FOLDER, ASSET_TYPES, ENVIRONMENT
+from settings.base import (
+    DATA_FOLDER,
+    ASSET_TYPES,
+    ENVIRONMENT,
+    ALERT_THRESHOLD_VALUE,
+    THRESHOLD_CORRECTION_VALUES,
+)
 from logger_config.configure_logger import configure_logger
 from data_download.collect_data import dataGetter
 from data_upload.upload_results import DataUploader
@@ -14,7 +20,7 @@ from utils.raster_utils.merge_rasters_gdal import merge_rasters_gdal
 from utils.vector_utils.combine_vector_data import combine_vector_data
 from utils.api import api_post_request
 
-from scenario_selector import scenarioSelector
+from scenario_selection.scenario_selector import scenarioSelector
 import pandas as pd
 
 import sys
@@ -41,18 +47,25 @@ def determine_trigger_states(
     if karonga_events:
         karonga_triggered_list = []
         for key, value in karonga_events.items():
+            if key in THRESHOLD_CORRECTION_VALUES:
+                threshold_value = (
+                    ALERT_THRESHOLD_VALUE + THRESHOLD_CORRECTION_VALUES.get(key)
+                )
+            else:
+                threshold_value = ALERT_THRESHOLD_VALUE
             region_file = gpd.read_file(
                 str(DATA_FOLDER / value / "region_statistics.gpkg")
             )
             affected_people = region_file[region_file["placeCode"] == key][
                 "affected_people"
             ].values[0]
+
             if affected_people is not None:
                 karonga_triggered_list.append(
                     region_file[region_file["placeCode"] == key][
                         "affected_people"
                     ].values[0]
-                    > 20
+                    > threshold_value
                 )
             else:
                 karonga_triggered_list.append(False)
@@ -63,6 +76,12 @@ def determine_trigger_states(
     if rumphi_events:
         rumphi_triggered_list = []
         for key, value in rumphi_events.items():
+            if key in THRESHOLD_CORRECTION_VALUES:
+                threshold_value = (
+                    ALERT_THRESHOLD_VALUE + THRESHOLD_CORRECTION_VALUES.get(key)
+                )
+            else:
+                threshold_value = ALERT_THRESHOLD_VALUE
             region_file = gpd.read_file(
                 str(DATA_FOLDER / value / "region_statistics.gpkg")
             )
@@ -74,7 +93,7 @@ def determine_trigger_states(
                     region_file[region_file["placeCode"] == key][
                         "affected_people"
                     ].values[0]
-                    > 20
+                    > threshold_value
                 )
             else:
                 rumphi_triggered_list.append(False)
@@ -85,6 +104,13 @@ def determine_trigger_states(
     if blantyre_events:
         blantyre_triggered_list = []
         for key, value in blantyre_events.items():
+            if key in THRESHOLD_CORRECTION_VALUES:
+                threshold_value = (
+                    ALERT_THRESHOLD_VALUE + THRESHOLD_CORRECTION_VALUES.get(key)
+                )
+            else:
+                threshold_value = ALERT_THRESHOLD_VALUE
+
             region_file = gpd.read_file(
                 str(DATA_FOLDER / value / "region_statistics.gpkg")
             )
@@ -96,7 +122,7 @@ def determine_trigger_states(
                     region_file[region_file["placeCode"] == key][
                         "affected_people"
                     ].values[0]
-                    > 20
+                    > threshold_value
                 )
             else:
                 blantyre_triggered_list.append(False)
@@ -259,7 +285,7 @@ def main():
 
     # step (2): scenarioselector: choose scenario per ta
     logger.info("step 2 started: scenario selection")
-    scenarios_selector = scenarioSelector(gfs_data)
+    scenarios_selector = scenarioSelector(gfs_data=gfs_data)
     (
         karonga_leadtime,
         karonga_events,
