@@ -262,7 +262,7 @@ class DataUploader:
                 "countryCodeISO3": "MWI",
                 "disasterType": "flash-floods",
                 "pointDataCategory": "gauges",
-                "dynamicPointData": values_list[:-1],
+                "dynamicPointData": values_list,
             }
             api_post_request("point-data/dynamic", body=sensor_dynamic_body)
 
