@@ -21,6 +21,9 @@ from settings.base import (
     METEO_RAIN_SENSOR,
 )
 from itertools import compress
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class dataGetter:
@@ -218,6 +221,7 @@ class dataGetter:
             or not expected_cosmo_hindcast_path.exists()
         ):
             # switch to gfs
+            logger.info("COSMO-data not found, switching to GFS-data")
             hindcast_start = round_to_nearest_hour(datetime.now()) - timedelta(
                 days=2, hours=3
             )
@@ -307,6 +311,7 @@ class dataGetter:
                 )
                 gfs_data[row["placeCode"]] = gfs_precipitation
         else:
+            logger.info("Retrieving COSMO-data")
             ta_gdf_4326 = self.ta_gdf.copy()
             ta_gdf_4326.to_crs(4326, inplace=True)
 
@@ -388,8 +393,7 @@ class dataGetter:
         #     val = val.set_index("datetime")
         #     combined_rainfall.append(val)
 
-        # print(pd.concat(combined_rainfall, axis=1).head)
         # pd.concat(combined_rainfall, axis=1).to_csv(
-        #     r"d:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline\rainfall_test_gfs_sampling.csv"
-        # )
+        #     r"C:\Users\923265\Downloads\gfs_rainfall_prediction.csv"
+
         return gfs_data

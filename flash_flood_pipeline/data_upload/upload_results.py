@@ -9,11 +9,11 @@ from settings.base import (
     KARONGA_PLACECODES,
     RUMPHI_PLACECODES,
     BLANTYRE_PLACECODES,
+    THRESHOLD_CORRECTION_VALUES,
 )
 from mapping_tables.exposure_mapping_tables import (
     EXPOSURE_TYPES,
     TA_EXPOSURE_DICT,
-    POINT_EXPOSURE_DICT,
     GEOSERVER_EXPOSURE_DICT,
 )
 from utils.api import api_post_request
@@ -79,11 +79,20 @@ class DataUploader:
         ta_exposure_trigger = self.TA_exposure.copy()
 
         def determine_ta_trigger_state(row):
+            if row["placeCode"] in THRESHOLD_CORRECTION_VALUES:
+                threshold = int(
+                    ALERT_THRESHOLD_VALUE
+                    + THRESHOLD_CORRECTION_VALUES.get(row["placeCode"])
+                )
+                logger.info(
+                    f"Adjusting threshold for {row['placeCode']} from {ALERT_THRESHOLD_VALUE} to {threshold}"
+                )
+            else:
+                threshold = ALERT_THRESHOLD_VALUE
+
             if pd.isnull(row[ALERT_THRESHOLD_PARAMETER]):
                 return 0
-            elif row[
-                ALERT_THRESHOLD_PARAMETER
-            ] > ALERT_THRESHOLD_VALUE and self.lead_time not in [
+            elif row[ALERT_THRESHOLD_PARAMETER] > threshold and self.lead_time not in [
                 "24-hour",
                 "48-hour",
             ]:
@@ -114,9 +123,6 @@ class DataUploader:
             exposed_tas = triggered_tas.loc[triggered_tas["trigger_value"] == 1]
 
             if len(exposed_tas) > 0:
-                print(distr_name)
-                print(exposed_tas)
-
                 for key, value in EXPOSURE_TYPES.items():
                     exposure_df = exposed_tas.astype({key: "float"}).astype(
                         {key: "int"}
@@ -135,7 +141,6 @@ class DataUploader:
                         .to_dict("records")
                     )
                     body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    print(body)
                     api_post_request("admin-area-dynamic-data/exposure", body=body)
 
                 body = TA_EXPOSURE_DICT
@@ -149,7 +154,6 @@ class DataUploader:
                     .to_dict("records")
                 )
                 body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                print(body)
                 api_post_request("admin-area-dynamic-data/exposure", body=body)
 
     def expose_point_assets(self):
@@ -258,7 +262,7 @@ class DataUploader:
                 "countryCodeISO3": "MWI",
                 "disasterType": "flash-floods",
                 "pointDataCategory": "gauges",
-                "dynamicPointData": values_list,
+                "dynamicPointData": values_list[:-1],
             }
             api_post_request("point-data/dynamic", body=sensor_dynamic_body)
 

@@ -62,7 +62,7 @@ def combine_vector_data(ta_df, data_folder, asset_type):
 
                 if len(features_within_ta) > 0:
                     features_within_ta_filtered = features_within_ta[
-                        ["id", "vulnerability"]
+                        ["id", "vulnerability", "geometry"]
                     ]
                     vector_layers.append(features_within_ta_filtered)
 

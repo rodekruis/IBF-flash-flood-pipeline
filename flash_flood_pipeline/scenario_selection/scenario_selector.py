@@ -1,5 +1,9 @@
 import pandas as pd
 from datetime import datetime
+from utils.general_utils.convert_placecode_to_district import (
+    convert_placecode_to_district,
+)
+import numpy as np
 from mapping_tables.event_mapping import (
     event_mapping_12hr,
     event_mapping_24hr,
@@ -13,206 +17,12 @@ from settings.base import (
     RUMPHI_PLACECODES,
     BLANTYRE_PLACECODES,
     SMALL_LAGTIME_PLACECODES,
+    SEVERITY_ORDER_DISTRICT_MAPPING,
+    EVENT_TRIGGER_HOURS,
+    UPSTREAM_MAP,
 )
 
 COLUMNAME = "precipitation"
-
-EVENT_TRIGGER_HOURS = [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    15,
-    18,
-    21,
-    24,
-    48,
-]
-
-EVENT_SEVERITY_ORDER = [
-    "5mm_1hr",
-    "10mm_12hr",
-    "10mm_4hr",
-    "10mm_2hr",
-    "20mm_12hr",
-    "20mm_4hr",
-    "10mm_1hr",
-    "20mm_2hr",
-    "15mm_1hr",
-    "30mm_12hr",
-    "50mm_48hr",
-    "50mm_24hr",
-    "30mm_4hr",
-    "30mm_2hr",
-    "20mm_1hr",
-    "25mm_1hr",
-    "40mm_12hr",
-    "40mm_4hr",
-    "40mm_2hr",
-    "30mm_1hr",
-    "75mm_24hr",
-    "100mm_48hr",
-    "50mm_12hr",
-    "60mm_12hr",
-    "50mm_4hr",
-    "50mm_2hr",
-    "35mm_1hr",
-    "40mm_1hr",
-    "100mm_24hr",
-    "70mm_12hr",
-    "80mm_12hr",
-    "60mm_4hr",
-    "60mm_2hr",
-    "45mm_1hr",
-    "50mm_1hr",
-    "90mm_12hr",
-    "70mm_4hr",
-    "70mm_2hr",
-    "125mm_24hr",
-    "150mm_48hr",
-    "100mm_12hr",
-    "150mm_24hr",
-    "200mm_48hr",
-    "200mm_24hr",
-]
-
-UPSTREAM_MAP = {
-    "MW10410": ["MW10410"],
-    "MW10220": ["MW10220", "MW10203", "MW10104", "MW10106"],
-    "MW10203": ["MW10203", "MW10104", "MW10106"],
-    "MW10104": ["MW10104", "MW10106"],
-    "MW10106": ["MW10106"],
-    "MW10411": ["MW10411"],
-    "MW10503": ["MW10503"],
-    "MW10506": ["MW10506"],
-    "MW10502": ["MW10502", "MW10503"],
-    "MW10520": ["MW10520", "MW10506"],
-    "MW10510": ["MW10510", "MW10506"],
-    "MW10501": ["MW10501", "MW10510", "MW10506", "MW10520"],
-    "MW10505": ["MW10505", "MW10501", "MW10506", "MW10510", "MW10520"],
-    "MW10509": [
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW10511": ["MW10511", "MW10411"],
-    "MW10401": [
-        "MW10401",
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW10420": [
-        "MW10420",
-        "MW10410",
-        "MW10401",
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW10504": [
-        "MW10504",
-        "MW10502",
-        "MW10503",
-        "MW10420",
-        "MW10410",
-        "MW10401",
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW10407": [
-        "MW10407",
-        "MW10504",
-        "MW10502",
-        "MW10503",
-        "MW10420",
-        "MW10410",
-        "MW10401",
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW10403": ["MW10403"],
-    "MW10404": ["MW10404"],
-    "MW10402": [
-        "MW10402",
-        "MW10404",
-        "MW10403",
-        "MW10407",
-        "MW10504",
-        "MW10502",
-        "MW10503",
-        "MW10420",
-        "MW10410",
-        "MW10401",
-        "MW10509",
-        "MW10505",
-        "MW10501",
-        "MW10506",
-        "MW10510",
-        "MW10520",
-        "MW10511",
-        "MW10411",
-    ],
-    "MW31546": ["MW31546"],
-    "MW31545": ["MW31545"],
-    "MW31541": ["MW31541"],
-    "MW31548": ["MW31548"],
-    "MW31552": ["MW31552"],
-    "MW31540": ["MW31540"],
-    "MW31549": ["MW31549"],
-    "MW31543": ["MW31543"],
-    "MW31533": ["MW31533"],
-    "MW31539": ["MW31539"],
-    "MW31531": ["MW31531"],
-    "MW31553": ["MW31553"],
-    "MW31544": ["MW31544"],
-    "MW31542": ["MW31542"],
-    "MW31551": ["MW31551"],
-    "MW31537": ["MW31537"],
-    "MW31536": ["MW31536"],
-    "MW31535": ["MW31535"],
-    "MW31534": ["MW31534"],
-    "MW31538": ["MW31538"],
-    "MW31547": ["MW31547"],
-    "MW31550": ["MW31550"],
-    "MW31532": ["MW31532"],
-}
 
 
 class scenarioSelector:
@@ -288,21 +98,35 @@ class scenarioSelector:
 
         for key, df in gfs_data.items():
             for index, row in df.iterrows():
+
                 df.loc[index, "12hr"] = event_mapping_12hr(row["12hr"].item())
                 df.loc[index, "24hr"] = event_mapping_24hr(row["24hr"].item())
                 df.loc[index, "48hr"] = event_mapping_48hr(row["48hr"].item())
+
             if key in SMALL_LAGTIME_PLACECODES:
                 for index, row in df.iterrows():
                     df.loc[index, "1hr"] = event_mapping_1hr(row["1hr"].item())
                     df.loc[index, "2hr"] = event_mapping_2hr(row["2hr"].item())
                     df.loc[index, "4hr"] = event_mapping_4hr(row["4hr"].item())
+
             else:
                 df.drop(columns=["1hr", "2hr", "4hr"], inplace=True)
+
             for column in df.columns:
-                df[column] = df[column].astype(int).astype(str) + "mm_" + str(column)
+                if convert_placecode_to_district(place_code=key) == "Blantyre City":
+                    # round up to nearest 10 (since we did not calculate 5mm events for BC)
+                    df[column] = np.ceil(df[column] / 10.0) * 10
+                    df[column] = (
+                        df[column].astype(int).astype(str) + "mm_" + str(column)
+                    )
+                else:
+                    df[column] = (
+                        df[column].astype(int).astype(str) + "mm_" + str(column)
+                    )
+
         return gfs_data
 
-    def find_worst_event(self, df_target_hours):
+    def find_worst_event(self, df_target_hours, district):
         """
         Takes the dataframe with all events for a single TA and determines which event (e.g., 20mm in 1 hour) will give the largest flooding. The worst event (e.g., 40mm in 2 hours over 20mm in 1 hour) is stored and used to trigger/display in the IBF system.
 
@@ -316,11 +140,17 @@ class scenarioSelector:
         df_hours_filtered = df_target_hours.drop(columns=["time_reference"])
         events_list = df_hours_filtered.to_numpy().flatten()
         severity_index_list = []
+
         for item in events_list:
             if not str(item).startswith("0"):
-                severity_index_list.append(EVENT_SEVERITY_ORDER.index(item))
+                severity_index_list.append(
+                    SEVERITY_ORDER_DISTRICT_MAPPING.get(district).index(item)
+                )
+
         if severity_index_list:
-            most_severe_event = EVENT_SEVERITY_ORDER[max(severity_index_list)]
+            most_severe_event = SEVERITY_ORDER_DISTRICT_MAPPING.get(district)[
+                max(severity_index_list)
+            ]
             most_severe_event_index = df_target_hours[
                 df_target_hours[most_severe_event.split("_")[1]] == most_severe_event
             ].first_valid_index()
@@ -353,9 +183,14 @@ class scenarioSelector:
         rumphi_events = {}
         blantyre_leadtimes = []
         blantyre_events = {}
+
         for key, df in event_data.items():
             df_target_hours = df[df["time_reference"].isin(EVENT_TRIGGER_HOURS)]
-            event, leadtime = self.find_worst_event(df_target_hours)
+            event, leadtime = self.find_worst_event(
+                df_target_hours=df_target_hours,
+                district=convert_placecode_to_district(key),
+            )
+
             if event not in [
                 "0mm_1hr",
                 "0mm_2hr",
