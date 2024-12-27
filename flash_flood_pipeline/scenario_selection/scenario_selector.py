@@ -155,9 +155,11 @@ class scenarioSelector:
                 df_target_hours[most_severe_event.split("_")[1]] == most_severe_event
             ].first_valid_index()
             event_time = df_target_hours.loc[most_severe_event_index, "time_reference"]
+            event_time = max(1, event_time)  # temporary fix
             return most_severe_event, event_time
         else:
-            return "0mm_1hr", 0
+            # return "0mm_1hr", 0
+            return "0mm_1hr", 1
 
     def select_scenarios(self):
         """
