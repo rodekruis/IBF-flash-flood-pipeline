@@ -22,6 +22,8 @@ from utils.api import api_post_request
 
 from scenario_selection.scenario_selector import scenarioSelector
 import pandas as pd
+import json
+import os
 
 import sys
 
@@ -239,6 +241,79 @@ def combine_events_and_upload_to_ibf(
     return data_uploader, raster_paths
 
 
+def historic_event_management(
+    karonga_leadtime,
+    karonga_trigger,
+    karonga_events,
+    rumphi_leadtime,
+    rumphi_trigger,
+    rumphi_events,
+    blantyre_leadtime,
+    blantyre_trigger,
+    blantyre_events,
+):
+    leadtime_0_dict = {}
+    if karonga_trigger and karonga_leadtime == 0:
+        leadtime_0_dict["karonga"] = karonga_events
+    if rumphi_trigger and rumphi_leadtime == 0:
+        leadtime_0_dict["rumphi"] = rumphi_events
+    if blantyre_trigger and blantyre_leadtime == 0:
+        leadtime_0_dict["blantyre"] = blantyre_events
+    if leadtime_0_dict:
+        with open(
+            "data/events/leadtime_0_events_{}.json".format(
+                datetime.datetime.now().strftime("%d-%m-%Y_%H")
+            ),
+            "w",
+        ) as outfile:
+            json.dump(leadtime_0_dict, outfile)
+
+    event_files = [
+        f
+        for f in os.listdir("data/events")
+        if os.path.isfile(os.path.join("data/events", f))
+    ]
+    event_files_dates = [
+        datetime.datetime.strptime(filename, "leadtime_0_events_%d-%m-%Y_%H.json")
+        for filename in event_files
+    ]
+    if event_files_dates:
+        latest_event = max(event_files_dates)
+        if latest_event > datetime.datetime.now() - datetime.timedelta(days=5):
+            with open(
+                "data/events/leadtime_0_events_{}.json".format(
+                    latest_event.strftime("%d-%m-%Y_%H")
+                ),
+                "r",
+            ) as event_file:
+                historic_event = json.load(event_file)
+        if historic_event:
+            for key, value in historic_event.items():
+                if key == "karonga":
+                    karonga_leadtime = 0
+                    karonga_trigger = True
+                    karonga_events = value
+                if key == "rumphi":
+                    rumphi_leadtime = 0
+                    rumphi_trigger = True
+                    rumphi_events = value
+                if key == "blantyre":
+                    blantyre_leadtime = 0
+                    blantyre_trigger = True
+                    blantyre_events = value
+    return (
+        karonga_leadtime,
+        karonga_trigger,
+        karonga_events,
+        rumphi_leadtime,
+        rumphi_trigger,
+        rumphi_events,
+        blantyre_leadtime,
+        blantyre_trigger,
+        blantyre_events,
+    )
+
+
 def main():
     """Run impact based forecasting pipeline for malawi early warning system."""
     configure_logger()
@@ -302,6 +377,28 @@ def main():
         karonga_events=karonga_events,
         rumphi_events=rumphi_events,
         blantyre_events=blantyre_events,
+    )
+
+    (
+        karonga_leadtime,
+        karonga_trigger,
+        karonga_events,
+        rumphi_leadtime,
+        rumphi_trigger,
+        rumphi_events,
+        blantyre_leadtime,
+        blantyre_trigger,
+        blantyre_events,
+    ) = historic_event_management(
+        karonga_leadtime,
+        karonga_trigger,
+        karonga_events,
+        rumphi_leadtime,
+        rumphi_trigger,
+        rumphi_events,
+        blantyre_leadtime,
+        blantyre_trigger,
+        blantyre_events,
     )
 
     region_trigger_metadata = pd.DataFrame(
