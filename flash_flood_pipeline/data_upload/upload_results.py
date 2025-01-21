@@ -93,6 +93,9 @@ class DataUploader:
             if pd.isnull(row[ALERT_THRESHOLD_PARAMETER]):
                 return 0
             elif row[ALERT_THRESHOLD_PARAMETER] > threshold and self.lead_time not in [
+                "15-hour",
+                "18-hour",
+                "21-hour",
                 "24-hour",
                 "48-hour",
             ]:
