@@ -328,7 +328,6 @@ def main():
     data_getter = dataGetter(ta_gdf)
     gfs_data = data_getter.get_rain_forecast()
     data_getter.gather_satellite_data()
-
     (
         gauges_actual_data_dict,
         gauges_reference_value_dict,
@@ -336,6 +335,7 @@ def main():
     ) = data_getter.get_sensor_values()
 
     rain_sensor_data = data_getter.get_rain_gauge()
+    data_getter.update_rain_archive()
 
     if rain_sensor_data is not None:
         start_raingauge = rain_sensor_data.iloc[1].datetime
