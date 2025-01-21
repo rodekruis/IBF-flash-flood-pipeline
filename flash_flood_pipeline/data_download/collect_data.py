@@ -406,10 +406,12 @@ class dataGetter:
 
         gpm_download.get_catalogs()
         urls = gpm_download.get_urls()
-        
+
         gpm_download.download_hdf(urls=urls)
-        
+
         is_valid, nc_start_date, nc_end_date = gpm_download.validate_hdf()
-        logger.info(f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}")
+        logger.info(
+            f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}"
+        )
         gpm_download.process_data()
         logger.info(f"GPM NetCDF generated.")

@@ -6,3 +6,5 @@ plotly
 pygeos
 netCDF4
 rioxarray
+xarray
+h5py
