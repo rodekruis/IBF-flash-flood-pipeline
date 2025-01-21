@@ -1,11 +1,10 @@
-python>=3.12
-geopandas>=0.12.1
-rasterio>=1.2.0
-requests>=2.25.1
+geopandas==0.12.1
+rasterio==1.2.0
+requests==2.25.1
 plotly
 pygeos
 netCDF4
 rioxarray
 xarray
 h5py
-rasterstats>=0.15.0
+rasterstats
