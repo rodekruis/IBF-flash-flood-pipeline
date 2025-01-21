@@ -7,6 +7,7 @@ import rioxarray
 from rasterio.enums import Resampling
 import os
 import json
+from data_download.gpm_downloader import GpmDownload
 from data_download.get_gauge_from_gmail import get_satellite_data
 from data_download.utils.tunnel_fast import tunnel_fast
 from data_download.utils.extract_lat_lon import extract_lat_lon
@@ -397,3 +398,18 @@ class dataGetter:
         #     r"C:\Users\923265\Downloads\gfs_rainfall_prediction.csv"
 
         return gfs_data
+
+    def update_rain_archive(self):
+        download_path = Path(r"data\gpm\raw")
+
+        gpm_download = GpmDownload(download_path=download_path)
+
+        gpm_download.get_catalogs()
+        urls = gpm_download.get_urls()
+        
+        gpm_download.download_hdf(urls=urls)
+        
+        is_valid, nc_start_date, nc_end_date = gpm_download.validate_hdf()
+        logger.info(f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}")
+        gpm_download.process_data()
+        logger.info(f"GPM NetCDF generated.")
