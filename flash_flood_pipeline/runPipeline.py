@@ -369,7 +369,11 @@ def main():
         blantyre_leadtime,
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
-
+    
+    logger.info(f"Karonga: Leadtime: {karonga_leadtime} - events: {karonga_events}")
+    logger.info(f"Rumphi: Leadtime: {rumphi_leadtime} - events: {rumphi_events}")
+    logger.info(f"Blantyre: Leadtime: {blantyre_leadtime} - events: {blantyre_events}")
+    
     logger.info("step 2 finished: scenario selection")
     logger.info(str(datetime.datetime.now()))
 
