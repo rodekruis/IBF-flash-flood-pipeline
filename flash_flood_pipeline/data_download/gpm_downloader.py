@@ -12,7 +12,6 @@ import xarray as xr
 import netCDF4 as nc
 from pathlib import Path
 import numpy as np
-import calendar
 import rioxarray
 from concurrent.futures import ThreadPoolExecutor
 
