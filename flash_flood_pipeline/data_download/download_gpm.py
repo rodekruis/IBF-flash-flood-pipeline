@@ -1,17 +1,12 @@
 import os
-import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, time
 import requests
 import rasterio
 import h5py
-from rasterstats import zonal_stats
-import geopandas as gpd
 import pandas as pd
 import xarray as xr
-import netCDF4 as nc
 from pathlib import Path
-import numpy as np
 import rioxarray
 from concurrent.futures import ThreadPoolExecutor
 
@@ -206,27 +201,31 @@ class GpmDownload:
             rev = range(len(precip[0, :]) - 1, -1, -1)
             precip = precip.transpose()[rev, :]
 
-            with rasterio.io.MemoryFile() as memfile:
-                with memfile.open(
-                    driver="GTiff",
-                    width=(lonbounds[1] - lonbounds[0]) * 10,
-                    height=(latbounds[1] - latbounds[0]) * 10,
-                    count=1,
-                    dtype=precip.dtype,
-                    crs="EPSG:4326",
-                    transform=rasterio.transform.from_origin(
-                        lonbounds[0], latbounds[1], 0.1, 0.1
-                    ),
-                    nodata=-1,
-                ) as dst:
-                    dst.write(precip, 1)
-                xr_datasets.append(rioxarray.open_rasterio(memfile))
+            with rasterio.Env(GDAL_PAM_ENABLED=False):
+                with rasterio.io.MemoryFile() as memfile:
+                    with memfile.open(
+                        driver="GTiff",
+                        width=(lonbounds[1] - lonbounds[0]) * 10,
+                        height=(latbounds[1] - latbounds[0]) * 10,
+                        count=1,
+                        dtype=precip.dtype,
+                        crs="EPSG:4326",
+                        transform=rasterio.transform.from_origin(
+                            lonbounds[0], latbounds[1], 0.1, 0.1
+                        ),
+                        nodata=-1,
+                    ) as dst:
+                        dst.write(precip, 1)
+
+                    xr_datasets.append(rioxarray.open_rasterio(memfile))
 
         time = xr.Variable("time", self.timestamps)
 
         da = xr.concat([f for f in xr_datasets], dim=time).rename("gpm_precipitation")
 
-        da.to_netcdf(r"c:\Users\923265\Downloads\GPM\gpm_rolling_week.nc")
+        output_path = Path(r"data\gpm\gpm_rolling_week.nc")
+        da.to_netcdf(output_path)
+        return output_path
 
 
 if __name__ == "__main__":
