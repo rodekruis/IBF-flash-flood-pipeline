@@ -13,6 +13,8 @@ from settings.base import (
 )
 from logger_config.configure_logger import configure_logger
 from data_download.collect_data import dataGetter
+from data_download.download_rainfall_sensor_data import download_rainfall_sensor_data
+from data_download.update_gpm_archive import update_rain_archive
 from data_upload.upload_results import DataUploader
 from data_upload.raster_uploader import RasterUploader
 from utils.raster_utils.clip_rasters_on_ta import clip_rasters_on_ta
@@ -327,6 +329,7 @@ def main():
     logger.info("step 1 started: retrieving gfs data with API-request")
     data_getter = dataGetter(ta_gdf)
     gfs_data = data_getter.get_rain_forecast()
+    
     data_getter.gather_satellite_data()
     (
         gauges_actual_data_dict,
@@ -335,8 +338,14 @@ def main():
     ) = data_getter.get_sensor_values()
 
     rain_sensor_data = data_getter.get_rain_gauge()
-    data_getter.update_rain_archive()
-
+    logger.info("step 1 started: Updating GPM archive")
+    
+    gpm = update_rain_archive(ta_gdf=ta_gdf)
+    gpm.to_csv(rf"data/dev_debug_output/gpm_ts_{datetime.now().strftime('%Y-%m-%d_%H')}.csv")
+    
+    blantyre_rainfall_sensor_data = download_rainfall_sensor_data()
+    blantyre_rainfall_sensor_data.to_csv(rf"data/dev_debug_output/blantyre_sensors_ts_{datetime.now().strftime('%Y-%m-%d_%H')}.csv")
+    
     if rain_sensor_data is not None:
         start_raingauge = rain_sensor_data.iloc[1].datetime
 
@@ -369,11 +378,7 @@ def main():
         blantyre_leadtime,
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
-    
-    logger.info(f"Karonga: Leadtime: {karonga_leadtime} - events: {karonga_events}")
-    logger.info(f"Rumphi: Leadtime: {rumphi_leadtime} - events: {rumphi_events}")
-    logger.info(f"Blantyre: Leadtime: {blantyre_leadtime} - events: {blantyre_events}")
-    
+
     logger.info("step 2 finished: scenario selection")
     logger.info(str(datetime.datetime.now()))
 
@@ -383,6 +388,10 @@ def main():
         blantyre_events=blantyre_events,
     )
 
+    logger.info(f"Karonga pre-historic: Leadtime: {karonga_leadtime} - events: {karonga_events}")
+    logger.info(f"Rumphi pre-historic: Leadtime: {rumphi_leadtime} - events: {rumphi_events}")
+    logger.info(f"Blantyre pre-historic: Leadtime: {blantyre_leadtime} - events: {blantyre_events}")
+    
     (
         karonga_leadtime,
         karonga_trigger,
@@ -405,6 +414,10 @@ def main():
         blantyre_events,
     )
 
+    logger.info(f"Karonga: Leadtime: {karonga_leadtime} - events: {karonga_events}")
+    logger.info(f"Rumphi: Leadtime: {rumphi_leadtime} - events: {rumphi_events}")
+    logger.info(f"Blantyre: Leadtime: {blantyre_leadtime} - events: {blantyre_events}")
+    
     region_trigger_metadata = pd.DataFrame(
         data={
             "region": ["Karonga", "Rumphi", "Blantyre"],
