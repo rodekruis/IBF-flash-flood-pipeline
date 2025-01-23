@@ -8,3 +8,4 @@ rioxarray
 xarray
 h5py
 rasterstats
+xvec
