@@ -36,26 +36,20 @@ def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
 
 
 class GfsDownload:
-    def __init__(self, ta_gdf):
+    def __init__(self, ta_gdf, date):
         self.malawi_bbox = (
             31.0000000000000000,  # lon min
             -19.0000000000000000,  # lat min
             38.0000000000000000,  # lon max
             -7.0000000000000000,  # lat max
         )
-        self.current_datetime = datetime.now()
         self.ta_shapes = ta_gdf
+        self.date = date
         self.gfs_parameter_to_obtain = "apcpsfc"
 
     @property
-    def hindcast_start(self):
-        return round_to_nearest_hour(self.current_datetime) - timedelta(days=2, hours=3)
-
-    @property
     def forecast_start(self):
-        forecast_start = round_to_nearest_hour(self.current_datetime) - timedelta(
-            hours=9
-        )
+        forecast_start = round_to_nearest_hour(self.date) - timedelta(hours=9)
         if round(forecast_start.hour / 6) * 6 == 24:
             forecast_start = forecast_start + timedelta(days=1)
         return forecast_start
@@ -74,29 +68,21 @@ class GfsDownload:
 
     def retrieve(self):
         logger.info("GfsDownload - Retrieving GFS-precipitation data")
-        nc_dataset_hindcast = nc.Dataset(
-            "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_00z".format(
-                self.hindcast_start.strftime("%Y%m%d")
-            )
+        url = "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
+            self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
         )
+        print(f"Requesting {url}")
         nc_dataset_forecast = nc.Dataset(
             "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
                 self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
             )
         )
-
-        xr_hindcast = convert_to_xr(
-            ds=nc_dataset_hindcast,
-            bbox=self.malawi_bbox,
-            parameter_to_obtain=self.gfs_parameter_to_obtain,
-        )
-
-        xr_forecast = convert_to_xr(
+        xr_dataset = convert_to_xr(
             ds=nc_dataset_forecast,
             bbox=self.malawi_bbox,
             parameter_to_obtain=self.gfs_parameter_to_obtain,
         )
-        return xr_hindcast, xr_forecast
+        return xr_dataset
 
     def sample(self, dataset):
         ta_shapes_4326 = self.ta_shapes.to_crs("epsg:4326")
@@ -119,11 +105,14 @@ class GfsDownload:
         gfs_rainfall_pvt = gfs_rainfall.pivot(
             index="time", columns="ta", values=self.gfs_parameter_to_obtain
         )
+        gfs_rainfall_pvt = gfs_rainfall_pvt.diff()
         return gfs_rainfall_pvt
 
 
 if __name__ == "__main__":
-    ta_gdf = gpd.read_file(r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\prod\regions.gpkg")
+    ta_gdf = gpd.read_file(
+        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\prod\regions.gpkg"
+    )
     gfs = GfsDownload(ta_gdf=ta_gdf)
 
     xr_hindcast, xr_forecast = gfs.retrieve()

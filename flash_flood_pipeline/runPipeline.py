@@ -13,8 +13,8 @@ from settings.base import (
 )
 from logger_config.configure_logger import configure_logger
 from data_download.collect_data import dataGetter
-from data_download.download_rainfall_sensor_data import download_rainfall_sensor_data
-from data_download.update_gpm_archive import update_rain_archive
+from flash_flood_pipeline.data_processing.process_rainfall_sensor_data import download_rainfall_sensor_data
+from flash_flood_pipeline.data_processing.update_gpm_archive import update_rain_archive
 from data_upload.upload_results import DataUploader
 from data_upload.raster_uploader import RasterUploader
 from utils.raster_utils.clip_rasters_on_ta import clip_rasters_on_ta
@@ -255,6 +255,7 @@ def historic_event_management(
     blantyre_events,
 ):
     leadtime_0_dict = {}
+    print(blantyre_trigger, blantyre_leadtime, blantyre_events)
     if karonga_trigger and karonga_leadtime == 0:
         leadtime_0_dict["karonga"] = karonga_events
     if rumphi_trigger and rumphi_leadtime == 0:
@@ -326,25 +327,26 @@ def main():
     # step (1): get gfs data per ta
     ta_gdf = gpd.read_file(rf"data/static_data/{ENVIRONMENT}/regions.gpkg")
     ta_gdf = ta_gdf.to_crs(epsg=4326)  # ,allow_override=True)
-    logger.info("step 1 started: retrieving gfs data with API-request")
-    data_getter = dataGetter(ta_gdf)
-    gfs_data = data_getter.get_rain_forecast()
     
-    data_getter.gather_satellite_data()
-    (
-        gauges_actual_data_dict,
-        gauges_reference_value_dict,
-        gauges_yesterday_dict,
-    ) = data_getter.get_sensor_values()
+    # logger.info("step 1 started: retrieving gfs data with API-request")
+    # data_getter = dataGetter(ta_gdf)
+    # gfs_data = data_getter.get_rain_forecast()
+    
+    # data_getter.gather_satellite_data()
+    # (
+    #     gauges_actual_data_dict,
+    #     gauges_reference_value_dict,
+    #     gauges_yesterday_dict,
+    # ) = data_getter.get_sensor_values()
 
-    rain_sensor_data = data_getter.get_rain_gauge()
-    logger.info("step 1 started: Updating GPM archive")
+    # rain_sensor_data = data_getter.get_rain_gauge()
+    # logger.info("step 1 started: Updating GPM archive")
     
-    gpm = update_rain_archive(ta_gdf=ta_gdf)
-    gpm.to_csv(rf"data/dev_debug_output/gpm_ts_{datetime.now().strftime('%Y-%m-%d_%H')}.csv")
+    # gpm = update_rain_archive(ta_gdf=ta_gdf)
+    # gpm.to_csv(rf"data/dev_debug_output/gpm_ts_{datetime.datetime.now().strftime('%Y-%m-%d_%H')}.csv")
     
     blantyre_rainfall_sensor_data = download_rainfall_sensor_data()
-    blantyre_rainfall_sensor_data.to_csv(rf"data/dev_debug_output/blantyre_sensors_ts_{datetime.now().strftime('%Y-%m-%d_%H')}.csv")
+    blantyre_rainfall_sensor_data.to_csv(rf"data/dev_debug_output/blantyre_sensors_ts_{datetime.datetime.now().strftime('%Y-%m-%d_%H')}.csv")
     
     if rain_sensor_data is not None:
         start_raingauge = rain_sensor_data.iloc[1].datetime

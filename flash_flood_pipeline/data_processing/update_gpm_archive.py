@@ -1,13 +1,16 @@
 from pathlib import Path
 import sys
+
 sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 from data_download.download_gpm import GpmDownload
 import xarray as xr
-import xvec
+
+import rioxarray
 import numpy as np
 import logging
 import geopandas as gpd
-
+from rasterio.enums import Resampling
+import xvec
 logger = logging.getLogger(__name__)
 
 
@@ -25,18 +28,29 @@ def update_rain_archive(ta_gdf):
         f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}"
     )
     xr_output_path = gpm_download.process_data()
-    
+
     ta_shapes_4326 = ta_gdf.to_crs("epsg:4326")
 
-    dataset = xr.open_dataset(xr_output_path)
-    sampled = dataset.xvec.zonal_stats(
+    dataset = rioxarray.open_rasterio(xr_output_path)
+
+    upscale_factor = 8
+
+    new_width = dataset.rio.width * upscale_factor
+    new_height = dataset.rio.height * upscale_factor
+    dataset_upsampled = dataset.rio.reproject(
+        dataset.rio.crs,
+        shape=(new_height, new_width),
+        resampling=Resampling.bilinear,
+    )
+
+    sampled = dataset_upsampled.xvec.zonal_stats(
         ta_shapes_4326.geometry,
         x_coords="x",
         y_coords="y",
-        stats=np.nansum,
+        stats=np.nanmean,
         all_touched=False,
     )
-    
+
     gpm_rainfall = sampled.xvec.to_geodataframe().reset_index(drop=False)
 
     gpm_rainfall["ta"] = gpm_rainfall.apply(
@@ -45,11 +59,8 @@ def update_rain_archive(ta_gdf):
         ].iloc[0],
         axis=1,
     )
-    print(gpm_rainfall)
-    gfs_rainfall_pvt = gpm_rainfall.pivot(
+    
+    gpm_rainfall = gpm_rainfall.pivot(
         index="time", columns="ta", values="gpm_precipitation"
     )
-    return gfs_rainfall_pvt
-
-
-
+    return gpm_rainfall

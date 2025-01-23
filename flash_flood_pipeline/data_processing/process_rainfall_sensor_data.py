@@ -17,7 +17,7 @@ def download_rainfall_sensor_data():
     start_date = datetime.now()
     archive_location = Path(r"data/gauge_data")
 
-    start_sensor_date = start_date - timedelta(days=17)
+    start_sensor_date = start_date - timedelta(days=7)
     
     rain_sensor_data_collection = []
     
@@ -48,12 +48,13 @@ def download_rainfall_sensor_data():
                         )
 
             sensor_data = pd.concat(dataframe_entry_list, axis=1).T          
+            #print(sensor_data)
             sensor_data = sensor_data.reset_index()
             sensor_data = sensor_data.drop_duplicates().set_index("index")
-            
+
             for col in sensor_data.columns:
                 sensor_data[col] = pd.to_numeric(sensor_data[col], errors="coerce")
-
+     
             sensor_data = sensor_data.sort_index()
             
             sensor_data["rainfall_prev"] = sensor_data.shift(1)[["rainfall"]]
@@ -63,12 +64,14 @@ def download_rainfall_sensor_data():
             )
             if sensor_data.index[0] >= start_sensor_date:
                 sensor_data.loc[sensor_data.index[0], f"{gauge_name}_rain"] = 0
-            
+            print(sensor_data.head())
+            print(start_sensor_date)
             sensor_data = sensor_data.loc[sensor_data.index >= start_sensor_date]
-            
+            print(sensor_data.head())
             sensor_data = sensor_data.sort_index()
             
             sensor_data = sensor_data[[f"{gauge_name}_rain"]]
+            print(sensor_data.head())
             rain_sensor_data_collection.append(sensor_data)
         
     gauge_rainfall = pd.concat(rain_sensor_data_collection, axis=1)
