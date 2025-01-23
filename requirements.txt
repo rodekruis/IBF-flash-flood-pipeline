@@ -1,7 +1,6 @@
-geopandas==0.12.1
-rasterio==1.2.0
-requests==2.25.1
-plotly
+geopandas
+rasterio
+requests
 pygeos
 netCDF4
 rioxarray
