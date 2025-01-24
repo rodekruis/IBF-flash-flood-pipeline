@@ -229,7 +229,7 @@ class GpmDownload:
         da = da.rio.set_spatial_dims("x", "y")
         da = da.drop("band")
 
-        output_path = Path(r"data\gpm\gpm_rolling_week.nc")
+        output_path = Path(r"data/gpm/gpm_rolling_week.nc")
         da.to_netcdf(output_path)
         return output_path
 

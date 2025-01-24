@@ -24,7 +24,7 @@ def update_gpm_archive(ta_gdf):
         f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}"
     )
     xr_output_path = gpm_download.process_data()
-
+    logger.info(f"Path: {xr_output_path} - {xr_output_path.exists()}")
     ta_shapes_4326 = ta_gdf.to_crs("epsg:4326")
 
     dataset = rioxarray.open_rasterio(xr_output_path)
