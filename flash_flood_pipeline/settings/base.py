@@ -2,7 +2,7 @@ from pathlib import Path
 
 # references
 DATA_FOLDER = Path("data/input_data")
-ENVIRONMENT = "test"  # can be prod or test
+ENVIRONMENT = "dev"  # can be prod or dev
 
 # general
 ASSET_TYPES = [

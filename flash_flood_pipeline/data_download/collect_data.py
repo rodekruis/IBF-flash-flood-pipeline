@@ -12,7 +12,7 @@ from data_download.download_gpm import GpmDownload
 from data_download.get_gauge_from_gmail import get_satellite_data
 from data_download.utils.tunnel_fast import tunnel_fast
 from data_download.utils.extract_lat_lon import extract_lat_lon
-from data_download.process_compacted_iridium_data import (
+from data_processing.process_compacted_iridium_data import (
     process_compacted_data,
 )
 from utils.general_utils.round_to_nearest_hour import (
@@ -364,10 +364,14 @@ class dataGetter:
             ta_gdf_4326 = self.ta_gdf.copy()
             ta_gdf_4326.to_crs(4326, inplace=True)
 
+            logger.info("open_rasterio COSMO-data")
             xds = rioxarray.open_rasterio(expected_cosmo_forecast_path)
+            
+            logger.info("write_crs COSMO-data")
             xds.rio.write_crs("epsg:4326", inplace=True)
 
             upscale_factor = 8
+            logger.info("Upscaling/reprojecting COSMO-data")
             new_width = xds.rio.width * upscale_factor
             new_height = xds.rio.height * upscale_factor
             xds_upsampled_forecast = xds.rio.reproject(
@@ -375,6 +379,7 @@ class dataGetter:
                 shape=(new_height, new_width),
                 resampling=Resampling.bilinear,
             )
+            logger.info("Done")
             datetime_list_forecast = [
                 datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
                 for x in xds_upsampled_forecast.time.data[:]

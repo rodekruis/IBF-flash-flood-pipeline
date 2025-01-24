@@ -3,6 +3,7 @@ from datetime import datetime
 from utils.general_utils.convert_placecode_to_district import (
     convert_placecode_to_district,
 )
+
 import numpy as np
 from mapping_tables.event_mapping import (
     event_mapping_12hr,
@@ -76,6 +77,7 @@ class scenarioSelector:
             dfs = []
             for ta in upstream_tas:
                 dfs.append(gfs_data[ta])
+
             averages = (
                 pd.concat([each.stack() for each in dfs], axis=1)
                 .apply(lambda x: x.mean(), axis=1)

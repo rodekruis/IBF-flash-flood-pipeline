@@ -105,7 +105,6 @@ class GpmDownload:
                 downloaded_paths.append(path)
             else:
                 failed_paths.append(path)
-        print(failed_paths)
 
     def validate_hdf(self):
         start_date = datetime.combine(
@@ -222,8 +221,11 @@ class GpmDownload:
         time = xr.Variable("time", self.timestamps)
 
         da = xr.concat([f for f in xr_datasets], dim=time).rename("gpm_precipitation")
+        da = da.rio.write_crs("epsg:4326")
+        da = da.rio.set_spatial_dims("x", "y")
+        da = da.drop("band")
 
-        output_path = Path(r"data\gpm\gpm_rolling_week.nc")
+        output_path = Path(r"data\forcing\gpm\gpm_rolling_week.nc")
         da.to_netcdf(output_path)
         return output_path
 

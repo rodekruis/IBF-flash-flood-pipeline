@@ -1,18 +1,17 @@
 from pathlib import Path
-import sys
-sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 from data_download.download_gpm import GpmDownload
-import xarray as xr
+import logging
+import rioxarray
+from rasterio.enums import Resampling
 import xvec
 import numpy as np
-import logging
-import geopandas as gpd
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
-def update_rain_archive(ta_gdf):
-    download_path = Path(r"data\gpm\raw")
+def update_gpm_archive(ta_gdf):
+    download_path = Path(r"data\forcing\gpm\raw")
     gpm_download = GpmDownload(download_path=download_path)
 
     gpm_download.get_catalogs()
@@ -25,18 +24,29 @@ def update_rain_archive(ta_gdf):
         f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}"
     )
     xr_output_path = gpm_download.process_data()
-    
+
     ta_shapes_4326 = ta_gdf.to_crs("epsg:4326")
 
-    dataset = xr.open_dataset(xr_output_path)
-    sampled = dataset.xvec.zonal_stats(
+    dataset = rioxarray.open_rasterio(xr_output_path)
+
+    upscale_factor = 8
+
+    new_width = dataset.rio.width * upscale_factor
+    new_height = dataset.rio.height * upscale_factor
+    dataset_upsampled = dataset.rio.reproject(
+        dataset.rio.crs,
+        shape=(new_height, new_width),
+        resampling=Resampling.bilinear,
+    )
+
+    sampled = dataset_upsampled.xvec.zonal_stats(
         ta_shapes_4326.geometry,
         x_coords="x",
         y_coords="y",
-        stats=np.nansum,
+        stats=np.nanmean,
         all_touched=False,
     )
-    
+
     gpm_rainfall = sampled.xvec.to_geodataframe().reset_index(drop=False)
 
     gpm_rainfall["ta"] = gpm_rainfall.apply(
@@ -45,11 +55,12 @@ def update_rain_archive(ta_gdf):
         ].iloc[0],
         axis=1,
     )
-    print(gpm_rainfall)
-    gfs_rainfall_pvt = gpm_rainfall.pivot(
+
+    gpm_rainfall = gpm_rainfall.pivot(
         index="time", columns="ta", values="gpm_precipitation"
     )
-    return gfs_rainfall_pvt
-
-
-
+    gpm_rainfall.index = [pd.to_datetime(str(date)) for date in gpm_rainfall.index]
+    gpm_rainfall = gpm_rainfall.sort_index()
+    gpm_rainfall = gpm_rainfall.resample("h").mean()
+    gpm_rainfall["src"] = "GPM"
+    return gpm_rainfall
