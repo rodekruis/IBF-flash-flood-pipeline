@@ -25,15 +25,11 @@ def process_karonga_rainfall_sensor_data(start_date):
     datetime_list = [
         datetime.strptime(x.split("_")[0], "%Y%m%d%H%M%S") for x in sensor_filtered_list
     ]
-    print(start_date)
-    print(datetime_list)
+
     relevant_files = [x for x in datetime_list if x > rain_start_date]
-
-    print(relevant_files)
-
+    logger.info(f"Karonga relevant files: {relevant_files}")
     if relevant_files:
         rain_files = list(compress(sensor_filtered_list, relevant_files))
-        print(rain_files)
         rain_timeseries = []
         for file in rain_files:
             with open("data/gauge_data/" + file) as json_file:

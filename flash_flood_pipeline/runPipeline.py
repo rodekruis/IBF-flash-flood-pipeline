@@ -219,7 +219,7 @@ def combine_events_and_upload_to_ibf(
         raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
         raster_paths += additional_raster_paths
         merge_rasters_gdal(
-            "data/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
+            f"data/{ENVIRONMENT}/flood_extents/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
         )
     logger.info(
         "step 3b finished for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -247,7 +247,7 @@ def combine_events_and_upload_to_ibf(
 
     if not skip_depth_upload:
         raster_uploader = RasterUploader(
-            raster_files=[f"data/flood_extent_{str(lead_time)}-hour_MWI.tif"]
+            raster_files=[f"data/{ENVIRONMENT}/flood_extents/flood_extent_{str(lead_time)}-hour_MWI.tif"]
         )
         raster_uploader.upload_raster_file()
 
