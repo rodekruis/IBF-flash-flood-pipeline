@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def update_gpm_archive(ta_gdf):
-    download_path = Path(r"data\forcing\gpm\raw")
+    download_path = Path(r"data\gpm\raw")
     gpm_download = GpmDownload(download_path=download_path)
 
     gpm_download.get_catalogs()
