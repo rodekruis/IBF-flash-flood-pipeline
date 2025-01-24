@@ -1,21 +1,17 @@
 from pathlib import Path
-import sys
-
-sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 from data_download.download_gpm import GpmDownload
-import xarray as xr
-
-import rioxarray
-import numpy as np
 import logging
-import geopandas as gpd
+import rioxarray
 from rasterio.enums import Resampling
 import xvec
+import numpy as np
+import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 
-def update_rain_archive(ta_gdf):
-    download_path = Path(r"data\gpm\raw")
+def update_gpm_archive(ta_gdf):
+    download_path = Path(r"data\forcing\gpm\raw")
     gpm_download = GpmDownload(download_path=download_path)
 
     gpm_download.get_catalogs()
@@ -59,8 +55,12 @@ def update_rain_archive(ta_gdf):
         ].iloc[0],
         axis=1,
     )
-    
+
     gpm_rainfall = gpm_rainfall.pivot(
         index="time", columns="ta", values="gpm_precipitation"
     )
+    gpm_rainfall.index = [pd.to_datetime(str(date)) for date in gpm_rainfall.index]
+    gpm_rainfall = gpm_rainfall.sort_index()
+    gpm_rainfall = gpm_rainfall.resample("h").mean()
+    gpm_rainfall["src"] = "GPM"
     return gpm_rainfall

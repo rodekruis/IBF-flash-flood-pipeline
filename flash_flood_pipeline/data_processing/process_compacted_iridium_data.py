@@ -6,8 +6,17 @@ from utils.iridium_utils.format_datetime_file_format import (
 import datetime
 import math
 import os
+from data_download.get_gauge_from_gmail import get_satellite_data
 
 MAX_COMP_BYTES = 9
+
+
+def gather_satellite_data():
+    filename_list = get_satellite_data()
+    for filename in filename_list:
+        with open(filename, "br") as file:
+            data = file.read()
+            process_compacted_data(r"data/gauge_data", data, len(data), "Karonga")
 
 
 def process_compacted_data(export_path, log_data, log_data_size, emei):

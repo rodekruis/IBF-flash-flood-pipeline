@@ -2,8 +2,8 @@ import geopandas as gpd
 from pathlib import Path
 import datetime
 from data_processing.process_cosmo import process_cosmo
+from data_processing.process_gpm import update_gpm_archive
 from data_download.download_gfs import GfsDownload
-from data_download.download_gpm import GpmDownload
 import logging
 import rioxarray
 from rasterio.enums import Resampling
@@ -26,7 +26,6 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
-        print(self.current_date_utc)
         self.cosmo_folder = Path("data/cosmo")
 
     @property
@@ -89,61 +88,6 @@ class ForcingProcessor:
         else:
             raise CosmoNotFound("No eligible COSMO-data found")
 
-    def update_gpm_archive(self):
-        download_path = Path(r"data\forcing\gpm\raw")
-        gpm_download = GpmDownload(download_path=download_path)
-
-        gpm_download.get_catalogs()
-        urls = gpm_download.get_urls()
-
-        gpm_download.download_hdf(urls=urls)
-
-        is_valid, nc_start_date, nc_end_date = gpm_download.validate_hdf()
-        logger.info(
-            f"GPM archive up to date from {nc_start_date} to {nc_end_date}. No temporal datagaps: {is_valid}"
-        )
-        xr_output_path = gpm_download.process_data()
-
-        ta_shapes_4326 = ta_gdf.to_crs("epsg:4326")
-
-        dataset = rioxarray.open_rasterio(xr_output_path)
-
-        upscale_factor = 8
-
-        new_width = dataset.rio.width * upscale_factor
-        new_height = dataset.rio.height * upscale_factor
-        dataset_upsampled = dataset.rio.reproject(
-            dataset.rio.crs,
-            shape=(new_height, new_width),
-            resampling=Resampling.bilinear,
-        )
-
-        sampled = dataset_upsampled.xvec.zonal_stats(
-            ta_shapes_4326.geometry,
-            x_coords="x",
-            y_coords="y",
-            stats=np.nanmean,
-            all_touched=False,
-        )
-
-        gpm_rainfall = sampled.xvec.to_geodataframe().reset_index(drop=False)
-
-        gpm_rainfall["ta"] = gpm_rainfall.apply(
-            lambda row: ta_shapes_4326.loc[
-                ta_shapes_4326.geometry == row.geometry, "placeCode"
-            ].iloc[0],
-            axis=1,
-        )
-
-        gpm_rainfall = gpm_rainfall.pivot(
-            index="time", columns="ta", values="gpm_precipitation"
-        )
-        gpm_rainfall.index = [pd.to_datetime(str(date)) for date in gpm_rainfall.index]
-        gpm_rainfall = gpm_rainfall.sort_index()
-        gpm_rainfall = gpm_rainfall.resample("h").mean()
-        gpm_rainfall["src"] = "GPM"
-        return gpm_rainfall
-
     def retrieve_forecast(self):
         if self.cosmo_prediction_found:
             logger.info("Eligible COSMO-data found.")
@@ -153,22 +97,24 @@ class ForcingProcessor:
                     self.cosmo_date_to_use.strftime("%Y%m%d")
                 )
             )
-            forcing_forecast = process_cosmo(ta_gdf=ta_gdf, cosmo_path=cosmo_path)
+            forcing_forecast = process_cosmo(ta_gdf=self.ta_gdf, cosmo_path=cosmo_path)
             forcing_forecast["src"] = "COSMO"
         else:
             logger.info("Eligible COSMO-data not found, switching to GFS.")
 
-            gfs_data = GfsDownload(ta_gdf=ta_gdf, date=self.current_date_utc)
+            gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=self.current_date_utc)
             xr_gfs_forecast = gfs_data.retrieve()
+ 
+            xr_gfs_forecast.to_netcdf(rf"d:\VSCode\IBF-flash-flood-pipeline\data\FORCING_TESTS\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc")
             forcing_forecast = gfs_data.sample(
                 dataset=xr_gfs_forecast
-            )  # TODO: Unit conversion
+            )
             forcing_forecast["src"] = "GFS"
         return forcing_forecast
 
     def construct_forcing_timeseries(self):
-        print("updating archive")
-        #gpm_archive_df = self.update_gpm_archive()
+        #gpm_archive_df = update_gpm_archive(ta_gdf=self.ta_gdf)
+        
         # gpm_archive_df.to_csv(r"d:\Documents\3_Projects\Training Ghana\HEC-RAS model\example_model\2023_dredged\gpm_archive.csv")
 
         gpm_archive_df = pd.read_csv(
@@ -176,64 +122,64 @@ class ForcingProcessor:
             index_col=0,
             parse_dates=True,
         )
+        gpm_archive_df = gpm_archive_df.drop("src", axis=1).resample("h").mean() # unit is mm/h, timestep is 0.5 h
+        gpm_archive_df["src"] = "GPM"
+        
         last_gpm_timestep = gpm_archive_df.index[-1]
-        gpm_interval = datetime.timedelta(hours=0.5)
-        print("retrieving forecast")
+        
         forcing_forecast = self.retrieve_forecast()
-
+        
         if (
-            last_gpm_timestep.to_pydatetime() + gpm_interval
-            >= forcing_forecast.index[0].to_pydatetime()
+            last_gpm_timestep.to_pydatetime() >= forcing_forecast.index[0].to_pydatetime()
         ):
-            print("Prediction fits to GPM")
-            forcing_timeseries_datagap = None
+            forcing_forecast_clipped = forcing_forecast.loc[forcing_forecast.index > last_gpm_timestep.to_pydatetime()].copy()
+            forcing_combined = pd.concat([gpm_archive_df, forcing_forecast_clipped], axis=0) # drop first row: doublecheck how values are represented
         else:
-            print("Filling gap between prediction and GPM")
-            forcing_gap_start = last_gpm_timestep.to_pydatetime() + gpm_interval
+            
+            forcing_gap_start = last_gpm_timestep.to_pydatetime()
             forcing_gap_end = forcing_forecast.index[0].to_pydatetime()
 
             cosmo_path_data_gap = Path(
                 r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(
                     forcing_gap_start.strftime("%Y%m%d")
                 )
-            )    
+            )  
+            
             if cosmo_path_data_gap.exists():
                 logger.info("Filling gap between GPM and prediction with COSMO")
-                cosmo_data = process_cosmo(ta_gdf=ta_gdf, cosmo_path=cosmo_path_data_gap)
+                cosmo_data = process_cosmo(ta_gdf=self.ta_gdf, cosmo_path=cosmo_path_data_gap)
                 forcing_timeseries_datagap = cosmo_data.loc[
-                    (cosmo_data.index >= forcing_gap_start)
+                    (cosmo_data.index > forcing_gap_start)
                     & (cosmo_data.index <= forcing_gap_end)
-                ]
+                ].copy()
                 forcing_timeseries_datagap["src"] = "COSMO_GAP"
             else:
-                print("GFS")
-                print(forcing_gap_start)
-                gfs_data = GfsDownload(ta_gdf=ta_gdf, date=forcing_gap_start)
-                xr_gfs_forecast = gfs_data.retrieve()
-                forcing_timeseries_datagap = gfs_data.sample(dataset=xr_gfs_forecast)
+                logger.info("Filling gap between GPM and prediction with GFS")
+                gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=forcing_gap_start)
+                xr_gfs_gap = gfs_data.retrieve()
+                forcing_timeseries_datagap = gfs_data.sample(dataset=xr_gfs_gap)
                 forcing_timeseries_datagap["src"] = "GFS_GAP"
                 forcing_timeseries_datagap = forcing_timeseries_datagap.loc[
-                    (forcing_timeseries_datagap.index >= forcing_gap_start)
+                    (forcing_timeseries_datagap.index > forcing_gap_start)
                     & (forcing_timeseries_datagap.index <= forcing_gap_end)
                 ]
 
-            print(gpm_archive_df.head())
-            print(gpm_archive_df.tail())
-            print("-------"*10)
-            try:
-                print(forcing_timeseries_datagap.head())
-                print(forcing_timeseries_datagap.tail())
-            except:
-                pass
-            print("-------"*10)
-            print(forcing_forecast.head())
-            print(forcing_forecast.tail())
+            forcing_combined = pd.concat([gpm_archive_df, forcing_timeseries_datagap, forcing_forecast[1:]], axis=0) # drop first row: doublecheck how values are represented
+        
+        forcing_combined.to_csv(r"data\dev\FORCING_TESTS\forcing_combined.csv")
+        
+        split_forcing_dfs = [forcing_combined[[c]].rename(columns={c: "precipitation"}).reset_index(names="datetime") for c in forcing_combined.columns if c != "src"]
+        
+        forcing_combined_dict = {k: v for k, v in zip(forcing_combined.columns.tolist(), split_forcing_dfs)}
+        
+        return forcing_combined_dict
 
 
 if __name__ == "__main__":
     ta_gdf = gpd.read_file(
-        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\prod\regions.gpkg"
+        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\test\regions.gpkg"
     )
+    
     fp = ForcingProcessor(ta_gdf=ta_gdf)
     fp.construct_forcing_timeseries()
 

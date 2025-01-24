@@ -22,16 +22,22 @@ logger = logging.getLogger(__name__)
 
 def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
     xr_dataset = xr.open_dataset(xr.backends.NetCDF4DataStore(ds))
-    xr_dataset = xr_dataset.rio.set_spatial_dims("lon", "lat")
+
+    xr_dataset = xr_dataset.rio.set_spatial_dims("lat", "lon")
     xr_dataset = xr_dataset.rio.write_crs("epsg:4326")
-    if bbox:
-        xr_dataset = xr_dataset.rio.clip_box(*bbox)
+    
     vars_to_drop = [
         x
         for x in xr_dataset.variables
-        if x not in ["time", "lat", "lon", parameter_to_obtain]
+        if x not in ["time", "lat", "lon", "spatial_ref", parameter_to_obtain]
     ]
+
     xr_dataset = xr_dataset.drop_vars(vars_to_drop)
+    xr_dataset = xr_dataset.rename({"lat": "y", "lon": "x"})
+
+    if bbox:
+        xr_dataset = xr_dataset.rio.clip_box(*bbox)
+
     return xr_dataset
 
 
@@ -71,27 +77,40 @@ class GfsDownload:
         url = "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
             self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
         )
-        print(f"Requesting {url}")
+
         nc_dataset_forecast = nc.Dataset(
             "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
                 self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
             )
         )
+        # surface total precipitation [kg/m^2]
+
         xr_dataset = convert_to_xr(
             ds=nc_dataset_forecast,
             bbox=self.malawi_bbox,
             parameter_to_obtain=self.gfs_parameter_to_obtain,
         )
-        return xr_dataset
+   
+        upscale_factor = 8
+
+        new_width = xr_dataset.rio.width * upscale_factor
+        new_height = xr_dataset.rio.height * upscale_factor
+        xr_dataset_upsampled = xr_dataset.rio.reproject(
+            xr_dataset.rio.crs,
+            shape=(new_height, new_width),
+            resampling=Resampling.bilinear,
+        )
+
+        return xr_dataset_upsampled
 
     def sample(self, dataset):
         ta_shapes_4326 = self.ta_shapes.to_crs("epsg:4326")
 
         sampled = dataset.xvec.zonal_stats(
             ta_shapes_4326.geometry,
-            x_coords="lon",
-            y_coords="lat",
-            stats=np.nansum,
+            x_coords="x",
+            y_coords="y",
+            stats=np.nanmean,
             all_touched=False,
         )
         gfs_rainfall = sampled.xvec.to_geodataframe().reset_index(drop=False)
@@ -106,7 +125,11 @@ class GfsDownload:
             index="time", columns="ta", values=self.gfs_parameter_to_obtain
         )
         gfs_rainfall_pvt = gfs_rainfall_pvt.diff()
-        return gfs_rainfall_pvt
+        gfs_rainfall_pvt = gfs_rainfall_pvt.fillna(0)
+        gfs_rainfall_pvt_resampled = (
+            gfs_rainfall_pvt.resample("h").bfill().divide(3)
+        )  # from mm/3h to mm/h
+        return gfs_rainfall_pvt_resampled
 
 
 if __name__ == "__main__":

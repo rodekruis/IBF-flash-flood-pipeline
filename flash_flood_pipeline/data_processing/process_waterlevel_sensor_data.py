@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def download_waterlevel_sensor_data():
+def process_waterlevel_sensor_data():
     gauges_data_files = os.listdir("data/gauge_data")
     month = datetime.now().month
     gauges_actual_data_dict = {}

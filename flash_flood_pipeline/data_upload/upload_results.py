@@ -108,10 +108,6 @@ class DataUploader:
             lambda row: determine_ta_trigger_state(row), axis=1
         )
 
-        ta_exposure_trigger.to_file(
-            rf"data/dev_debug_output/trad_auths_overview_{datetime.datetime.now().strftime('%Y_%m_%d_%H')}.gpkg"
-        )
-
         df_triggered_tas_blantyre = ta_exposure_trigger.loc[
             ta_exposure_trigger["placeCode"].isin(BLANTYRE_PLACECODES)
         ]

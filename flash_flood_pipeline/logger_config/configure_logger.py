@@ -1,5 +1,6 @@
 import logging
 import datetime
+from settings.base import ENVIRONMENT
 
 
 def configure_logger():
@@ -18,7 +19,7 @@ def configure_logger():
     console.setLevel(logging.INFO)
 
     log_file = logging.FileHandler(
-        rf"data/dev_logs/container_log_{datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log"
+        rf"data/{ENVIRONMENT}/logs/container_log_{datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log"
     )
     log_file.setLevel(logging.INFO)
 

@@ -12,7 +12,7 @@ from data_download.download_gpm import GpmDownload
 from data_download.get_gauge_from_gmail import get_satellite_data
 from data_download.utils.tunnel_fast import tunnel_fast
 from data_download.utils.extract_lat_lon import extract_lat_lon
-from flash_flood_pipeline.data_processing.process_compacted_iridium_data import (
+from data_processing.process_compacted_iridium_data import (
     process_compacted_data,
 )
 from utils.general_utils.round_to_nearest_hour import (

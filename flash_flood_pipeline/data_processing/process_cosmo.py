@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def process_cosmo(ta_gdf, cosmo_path: Path):
     logger.info("Processing COSMO-data")
 
-    ta_gdf_4326 = ta_gdf.to_crs(4326)
+    ta_gdf_4326 = ta_gdf.copy().to_crs(4326)
 
     cosmo_data = {}
 
@@ -29,6 +29,7 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         shape=(new_height, new_width),
         resampling=Resampling.bilinear,
     )
+    
     datetime_list_forecast = [
         datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
         for x in xds_upsampled_forecast.time.data[:]
@@ -56,7 +57,7 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         )
     
     individual_timeseries = []
-    
+
     for col_name, timeseries in cosmo_data.items():
         values_renamed = timeseries.rename(columns={"precipitation": col_name})
         values_renamed = values_renamed.set_index("datetime")
