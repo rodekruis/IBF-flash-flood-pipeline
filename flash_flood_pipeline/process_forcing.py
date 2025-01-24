@@ -107,7 +107,7 @@ class ForcingProcessor:
             gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=self.current_date_utc)
             xr_gfs_forecast = gfs_data.retrieve()
  
-            xr_gfs_forecast.to_netcdf(rf"data\{ENVIRONMENT}\debug_output\\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc")
+            xr_gfs_forecast.to_netcdf(rf"data\{ENVIRONMENT}\debug_output\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc")
             forcing_forecast = gfs_data.sample(
                 dataset=xr_gfs_forecast
             )

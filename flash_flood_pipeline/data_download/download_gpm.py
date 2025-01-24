@@ -9,6 +9,9 @@ import xarray as xr
 from pathlib import Path
 import rioxarray
 from concurrent.futures import ThreadPoolExecutor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_catalog(date):
@@ -31,6 +34,7 @@ class GpmDownload:
         self.base_url = "https://gpm2.gesdisc.eosdis.nasa.gov/"
         self.missing_days = []
         self.download_path = download_path
+        logger.info(f"Download path: {self.download_path} - {self.download_path.exists()}")
 
         self.malawi_bounds = (
             31.0000000000000000,  # lon min
@@ -75,8 +79,8 @@ class GpmDownload:
         raw = requests.get(self.base_url + download_meta[1])
 
         if raw.status_code == 200:
-            with open(self.download_path / download_meta[0], "wb") as file:
-                file.write(raw.content)
+            with open(self.download_path / download_meta[0], "wb") as f:
+                f.write(raw.content)
 
             return (True, download_meta[1])
         else:
