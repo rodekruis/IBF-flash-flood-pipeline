@@ -143,7 +143,7 @@ class GpmDownload:
         ]
 
         expected_daterange = pd.date_range(
-            start=start_date, end=hdf5_dates[-1], freq="0.5h"
+            start=start_date, end=hdf5_dates[-1], freq="30min"
         )
 
         no_gap_bool = all([x in hdf5_dates for x in expected_daterange])
