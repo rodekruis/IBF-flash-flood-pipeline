@@ -48,9 +48,9 @@ def write_forcing_dict_to_csv(forcing_dict, output_loc):
         ts = ts.set_index("datetime")
         ts.index = pd.to_datetime(ts.index)
         ts_coll.append(ts)
-    
+
     pd.concat(ts_coll, axis=1).to_csv(output_loc)
-    
+
 
 def determine_trigger_states(
     karonga_events: dict, rumphi_events: dict, blantyre_events: dict
@@ -221,7 +221,10 @@ def combine_events_and_upload_to_ibf(
         raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
         raster_paths += additional_raster_paths
         merge_rasters_gdal(
-            f"data/{ENVIRONMENT}/flood_extents/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
+            f"data/{ENVIRONMENT}/flood_extents/flood_extent_"
+            + str(lead_time)
+            + "-hour_MWI.tif",
+            raster_paths,
         )
     logger.info(
         "step 3b finished for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -249,7 +252,9 @@ def combine_events_and_upload_to_ibf(
 
     if not skip_depth_upload:
         raster_uploader = RasterUploader(
-            raster_files=[f"data/{ENVIRONMENT}/flood_extents/flood_extent_{str(lead_time)}-hour_MWI.tif"]
+            raster_files=[
+                f"data/{ENVIRONMENT}/flood_extents/flood_extent_{str(lead_time)}-hour_MWI.tif"
+            ]
         )
         raster_uploader.upload_raster_file()
 
@@ -272,56 +277,90 @@ def historic_event_management(
     blantyre_trigger,
     blantyre_events,
 ):
-    leadtime_0_dict = {}
-    print(blantyre_trigger, blantyre_leadtime, blantyre_events)
+
+    leadtime_0_library_path = Path(rf"data/{ENVIRONMENT}/events/leadtime_0_events.json")
+
+    if leadtime_0_library_path.exists():
+        with open(
+            leadtime_0_library_path,
+            "r",
+        ) as event_file:
+            leadtime_0_dict = json.load(event_file)
+    else:
+        leadtime_0_dict = {}
+
+    write_date = datetime.datetime.now().strftime("%d-%m-%Y_%H_%M")
+
+    new_leadtime0_dict = {}
+
     if karonga_trigger and karonga_leadtime == 0:
-        leadtime_0_dict["karonga"] = karonga_events
+        new_leadtime0_dict["karonga"] = karonga_events
     if rumphi_trigger and rumphi_leadtime == 0:
-        leadtime_0_dict["rumphi"] = rumphi_events
+        new_leadtime0_dict["rumphi"] = rumphi_events
     if blantyre_trigger and blantyre_leadtime == 0:
-        leadtime_0_dict["blantyre"] = blantyre_events
+        new_leadtime0_dict["blantyre"] = blantyre_events
+
+    leadtime_0_dict[write_date] = new_leadtime0_dict
+
     if leadtime_0_dict:
         with open(
-            "data/events/leadtime_0_events_{}.json".format(
-                datetime.datetime.now().strftime("%d-%m-%Y_%H")
-            ),
+            leadtime_0_library_path,
             "w",
         ) as outfile:
             json.dump(leadtime_0_dict, outfile)
 
-    event_files = [
-        f
-        for f in os.listdir("data/events")
-        if os.path.isfile(os.path.join("data/events", f))
-    ]
-    event_files_dates = [
-        datetime.datetime.strptime(filename, "leadtime_0_events_%d-%m-%Y_%H.json")
-        for filename in event_files
-    ]
-    if event_files_dates:
-        latest_event = max(event_files_dates)
-        if latest_event > datetime.datetime.now() - datetime.timedelta(days=5):
-            with open(
-                "data/events/leadtime_0_events_{}.json".format(
-                    latest_event.strftime("%d-%m-%Y_%H")
-                ),
-                "r",
-            ) as event_file:
-                historic_event = json.load(event_file)
-        if historic_event:
-            for key, value in historic_event.items():
-                if key == "karonga":
-                    karonga_leadtime = 0
-                    karonga_trigger = True
-                    karonga_events = value
-                if key == "rumphi":
-                    rumphi_leadtime = 0
-                    rumphi_trigger = True
-                    rumphi_events = value
-                if key == "blantyre":
-                    blantyre_leadtime = 0
-                    blantyre_trigger = True
-                    blantyre_events = value
+    with open(leadtime_0_library_path, "r") as event_file:
+        historic_event = json.load(event_file)
+        historic_event_dataframe = pd.DataFrame.from_dict(historic_event).T
+
+        historic_event_dataframe.index = pd.to_datetime(
+            historic_event_dataframe.index, format="%d-%m-%Y_%H_%M"
+        )
+        historic_event_dataframe = historic_event_dataframe.sort_index(ascending=False)
+
+        # filter on max 5 days in past
+        recent_historic_event_dataframe = historic_event_dataframe.loc[
+            historic_event_dataframe.index
+            > datetime.datetime.now() - datetime.timedelta(days=5)
+        ]
+
+        if "karonga" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            karonga_leadtime = 0
+            karonga_trigger = True
+            karonga_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["karonga"]].first_valid_index(),
+                "karonga",
+            ]
+        if "rumphi" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            rumphi_leadtime = 0
+            rumphi_trigger = True
+            rumphi_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["rumphi"]].first_valid_index(),
+                "rumphi",
+            ]
+        if "blantyre" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            blantyre_leadtime = 0
+            blantyre_trigger = True
+            blantyre_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["blantyre"]].first_valid_index(),
+                "blantyre",
+            ]
+
     return (
         karonga_leadtime,
         karonga_trigger,
@@ -362,13 +401,16 @@ def main():
     ) = process_waterlevel_sensor_data()
 
     forcing_start_date = list(forcing_timeseries.values())[0].loc[0, "datetime"]
-    
+
     karonga_rainfall_sensor_data = process_karonga_rainfall_sensor_data(
         start_date=forcing_start_date
     )
 
-    write_forcing_dict_to_csv(forcing_dict=forcing_timeseries, output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_before_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv")
-    
+    write_forcing_dict_to_csv(
+        forcing_dict=forcing_timeseries,
+        output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_before_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+    )
+
     if karonga_rainfall_sensor_data is not None:
         logger.info(
             "Step 1c.1: Overwriting satellite forcing with Karonga rainfall sensor data"
@@ -398,13 +440,15 @@ def main():
     blantyre_raingauge_data_idw = blantyre_raingauge_idw(
         ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data
     )
-    
+
     for ta in blantyre_raingauge_data_idw.columns:
         start_raingauge = blantyre_raingauge_data_idw.index[0]
         end_raingauge = blantyre_raingauge_data_idw.index[-1]
-        
+
         gauge_data = blantyre_raingauge_data_idw[[ta]].copy()
-        gauge_data = gauge_data.reset_index(names="datetime").rename(columns={ta: "precipitation"})
+        gauge_data = gauge_data.reset_index(names="datetime").rename(
+            columns={ta: "precipitation"}
+        )
 
         df = forcing_timeseries[ta].drop(
             forcing_timeseries[ta]
@@ -414,16 +458,17 @@ def main():
             ]
             .index
         )
-        df_combined = pd.concat(
-            [gauge_data, df], axis=0, ignore_index=True
-        )
+        df_combined = pd.concat([gauge_data, df], axis=0, ignore_index=True)
         df_combined = df_combined.drop_duplicates(subset=["datetime"], keep="first")
 
         df_combined = df_combined.sort_values(by=["datetime"])
         forcing_timeseries[ta] = df_combined
 
-    write_forcing_dict_to_csv(forcing_dict=forcing_timeseries, output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_after_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv")
-    
+    write_forcing_dict_to_csv(
+        forcing_dict=forcing_timeseries,
+        output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_after_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+    )
+
     blantyre_rainfall_sensor_data.to_csv(
         rf"data/{ENVIRONMENT}/debug_output/blantyre_sensors_ts_{datetime.datetime.now().strftime('%Y-%m-%d_%H')}.csv"
     )
@@ -442,22 +487,12 @@ def main():
     ) = scenarios_selector.select_scenarios()
 
     logger.info("step 2 finished: scenario selection")
-    logger.info(str(datetime.datetime.now()))
+    # logger.info(str(datetime.datetime.now()))
 
     karonga_trigger, rumphi_trigger, blantyre_trigger = determine_trigger_states(
         karonga_events=karonga_events,
         rumphi_events=rumphi_events,
         blantyre_events=blantyre_events,
-    )
-
-    logger.info(
-        f"Karonga pre-historic: Leadtime: {karonga_leadtime} - events: {karonga_events}"
-    )
-    logger.info(
-        f"Rumphi pre-historic: Leadtime: {rumphi_leadtime} - events: {rumphi_events}"
-    )
-    logger.info(
-        f"Blantyre pre-historic: Leadtime: {blantyre_leadtime} - events: {blantyre_events}"
     )
 
     (
@@ -481,10 +516,6 @@ def main():
         blantyre_trigger,
         blantyre_events,
     )
-
-    logger.info(f"Karonga: Leadtime: {karonga_leadtime} - events: {karonga_events}")
-    logger.info(f"Rumphi: Leadtime: {rumphi_leadtime} - events: {rumphi_events}")
-    logger.info(f"Blantyre: Leadtime: {blantyre_leadtime} - events: {blantyre_events}")
 
     region_trigger_metadata = pd.DataFrame(
         data={
