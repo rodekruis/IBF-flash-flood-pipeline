@@ -41,7 +41,7 @@ class ForcingProcessor:
                 datetime.datetime.strptime(
                     date_string.name, "COSMO_MLW_%Y%m%dT%H_prec.nc"
                 )
-                for date_string in self.cosmo_folder.glob("*.nc")
+                for date_string in self.cosmo_folder.glob("*_prec.nc")
             ]
         )
         return latest_cosmo_date
