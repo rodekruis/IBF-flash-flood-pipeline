@@ -135,7 +135,7 @@ def blantyre_raingauge_idw(
     ta_gdf_32736 = ta_gdf.copy().to_crs(epsg=32736)
 
     blantyre_gauge_locations = gpd.read_file(
-        Path(rf"data\static_data\{ENVIRONMENT}\installed_sensor_locations.gpkg")
+        Path(rf"data/static_data/{ENVIRONMENT}/installed_sensor_locations.gpkg")
     ).to_crs(epsg=32736)
 
     def eligible_for_idw(row):
