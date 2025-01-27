@@ -28,12 +28,11 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
-        
+
         self.cosmo_folder = Path(r"data/cosmo/")
 
     @property
     def most_recent_cosmo_date(self):
-        logger.info([f for f in self.cosmo_folder.glob("*.nc")])
         latest_cosmo_date = max(
             [
                 datetime.datetime.strptime(
@@ -180,7 +179,9 @@ class ForcingProcessor:
                 axis=0,
             )  # drop first row: doublecheck how values are represented
 
-        forcing_combined.to_csv(r"data/dev/debug_output/forcing_combined.csv")
+        forcing_combined.to_csv(
+            rf"data/dev/debug_output/forcing_combined_{datetime.datetime.now().strftime('%Y%m%d-%H')}.csv"
+        )
 
         split_forcing_dfs = [
             forcing_combined[[c]]
