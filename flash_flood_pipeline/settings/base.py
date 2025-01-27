@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import PurePosixPath as Path
 
 # references
 DATA_FOLDER = Path("data/input_data")

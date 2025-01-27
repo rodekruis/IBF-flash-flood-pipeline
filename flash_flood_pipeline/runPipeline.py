@@ -1,6 +1,6 @@
 import datetime
 import time
-from pathlib import Path
+from pathlib import PurePosixPath as Path
 import geopandas as gpd
 import numpy as np
 import logging
