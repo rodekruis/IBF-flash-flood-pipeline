@@ -28,7 +28,7 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
-        self.cosmo_folder = Path("data/cosmo")
+        self.cosmo_folder = Path(r"data/cosmo")
 
     @property
     def most_recent_cosmo_date(self):
@@ -106,18 +106,18 @@ class ForcingProcessor:
 
             gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=self.current_date_utc)
             xr_gfs_forecast = gfs_data.retrieve()
- 
-            xr_gfs_forecast.to_netcdf(rf"data\{ENVIRONMENT}\debug_output\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc")
-            forcing_forecast = gfs_data.sample(
-                dataset=xr_gfs_forecast
+
+            xr_gfs_forecast.to_netcdf(
+                rf"data\{ENVIRONMENT}\debug_output\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc"
             )
+            forcing_forecast = gfs_data.sample(dataset=xr_gfs_forecast)
             forcing_forecast["src"] = "GFS"
         return forcing_forecast
 
     def construct_forcing_timeseries(self):
         gpm_archive_df = update_gpm_archive(ta_gdf=self.ta_gdf)
-        
-        gpm_archive_df.to_csv(rf"data\{ENVIRONMENT}\debug_output\gpm_archive.csv")
+
+        gpm_archive_df.to_csv(rf"data/{ENVIRONMENT}/debug_output/gpm_archive.csv")
 
         # gpm_archive_df = pd.read_csv(
         #     r"d:\Documents\3_Projects\Training Ghana\HEC-RAS model\example_model\2023_dredged\gpm_archive.csv",
@@ -126,18 +126,23 @@ class ForcingProcessor:
         # )
         # gpm_archive_df = gpm_archive_df.drop("src", axis=1).resample("h").mean() # unit is mm/h, timestep is 0.5 h
         # gpm_archive_df["src"] = "GPM"
-        
+
         last_gpm_timestep = gpm_archive_df.index[-1]
-        
+
         forcing_forecast = self.retrieve_forecast()
-        
+
         if (
-            last_gpm_timestep.to_pydatetime() >= forcing_forecast.index[0].to_pydatetime()
+            last_gpm_timestep.to_pydatetime()
+            >= forcing_forecast.index[0].to_pydatetime()
         ):
-            forcing_forecast_clipped = forcing_forecast.loc[forcing_forecast.index > last_gpm_timestep.to_pydatetime()].copy()
-            forcing_combined = pd.concat([gpm_archive_df, forcing_forecast_clipped], axis=0) # drop first row: doublecheck how values are represented
+            forcing_forecast_clipped = forcing_forecast.loc[
+                forcing_forecast.index > last_gpm_timestep.to_pydatetime()
+            ].copy()
+            forcing_combined = pd.concat(
+                [gpm_archive_df, forcing_forecast_clipped], axis=0
+            )  # drop first row: doublecheck how values are represented
         else:
-            
+
             forcing_gap_start = last_gpm_timestep.to_pydatetime()
             forcing_gap_end = forcing_forecast.index[0].to_pydatetime()
 
@@ -145,11 +150,13 @@ class ForcingProcessor:
                 r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(
                     forcing_gap_start.strftime("%Y%m%d")
                 )
-            )  
-            
+            )
+
             if cosmo_path_data_gap.exists():
                 logger.info("Filling gap between GPM and prediction with COSMO")
-                cosmo_data = process_cosmo(ta_gdf=self.ta_gdf, cosmo_path=cosmo_path_data_gap)
+                cosmo_data = process_cosmo(
+                    ta_gdf=self.ta_gdf, cosmo_path=cosmo_path_data_gap
+                )
                 forcing_timeseries_datagap = cosmo_data.loc[
                     (cosmo_data.index > forcing_gap_start)
                     & (cosmo_data.index <= forcing_gap_end)
@@ -166,14 +173,25 @@ class ForcingProcessor:
                     & (forcing_timeseries_datagap.index <= forcing_gap_end)
                 ]
 
-            forcing_combined = pd.concat([gpm_archive_df, forcing_timeseries_datagap, forcing_forecast[1:]], axis=0) # drop first row: doublecheck how values are represented
-        
-        forcing_combined.to_csv(r"data\dev\debug_output\forcing_combined.csv")
-        
-        split_forcing_dfs = [forcing_combined[[c]].rename(columns={c: "precipitation"}).reset_index(names="datetime") for c in forcing_combined.columns if c != "src"]
-        
-        forcing_combined_dict = {k: v for k, v in zip(forcing_combined.columns.tolist(), split_forcing_dfs)}
-        
+            forcing_combined = pd.concat(
+                [gpm_archive_df, forcing_timeseries_datagap, forcing_forecast[1:]],
+                axis=0,
+            )  # drop first row: doublecheck how values are represented
+
+        forcing_combined.to_csv(r"data/dev/debug_output/forcing_combined.csv")
+
+        split_forcing_dfs = [
+            forcing_combined[[c]]
+            .rename(columns={c: "precipitation"})
+            .reset_index(names="datetime")
+            for c in forcing_combined.columns
+            if c != "src"
+        ]
+
+        forcing_combined_dict = {
+            k: v for k, v in zip(forcing_combined.columns.tolist(), split_forcing_dfs)
+        }
+
         return forcing_combined_dict
 
 
@@ -181,7 +199,7 @@ if __name__ == "__main__":
     ta_gdf = gpd.read_file(
         r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\test\regions.gpkg"
     )
-    
+
     fp = ForcingProcessor(ta_gdf=ta_gdf)
     fp.construct_forcing_timeseries()
 
