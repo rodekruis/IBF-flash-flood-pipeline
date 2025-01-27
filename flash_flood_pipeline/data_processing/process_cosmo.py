@@ -16,8 +16,9 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
     ta_gdf_4326 = ta_gdf.copy().to_crs(4326)
 
     cosmo_data = {}
-
+    logger.info(f"Opening {cosmo_path}")
     xds = rioxarray.open_rasterio(cosmo_path)
+    print(xds)
     xds.rio.write_crs("epsg:4326", inplace=True)
 
     upscale_factor = 8
@@ -64,4 +65,5 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         individual_timeseries.append(values_renamed)
         
     cosmo_df = pd.concat(individual_timeseries, axis=1)
+    print(cosmo_df)
     return cosmo_df

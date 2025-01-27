@@ -119,7 +119,7 @@ class ForcingProcessor:
     def construct_forcing_timeseries(self):
         gpm_archive_df = update_gpm_archive(ta_gdf=self.ta_gdf)
 
-        gpm_archive_df.to_csv(rf"data/{ENVIRONMENT}/debug_output/gpm_archive.csv")
+        # gpm_archive_df.to_csv(rf"data/{ENVIRONMENT}/debug_output/gpm_archive.csv")
 
         # gpm_archive_df = pd.read_csv(
         #     r"d:\Documents\3_Projects\Training Ghana\HEC-RAS model\example_model\2023_dredged\gpm_archive.csv",
@@ -199,11 +199,11 @@ class ForcingProcessor:
 
 if __name__ == "__main__":
     ta_gdf = gpd.read_file(
-        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\test\regions.gpkg"
+        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\dev\regions.gpkg"
     )
 
     fp = ForcingProcessor(ta_gdf=ta_gdf)
-    fp.construct_forcing_timeseries()
+    fp.retrieve_forecast()
 
     # # else:
     # forcing_gap_start = last_gpm_timestep.to_pydatetime() + gpm_interval
