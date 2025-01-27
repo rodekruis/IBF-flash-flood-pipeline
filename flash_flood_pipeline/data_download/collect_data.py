@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import netCDF4 as nc
-from pathlib import Path
+from pathlib import PurePosixPath as Path
 import xarray as xr
 import rioxarray
 from rasterio.enums import Resampling

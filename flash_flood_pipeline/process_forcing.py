@@ -1,5 +1,5 @@
 import geopandas as gpd
-from pathlib import Path
+from pathlib import PurePosixPath as Path
 import datetime
 from data_processing.process_cosmo import process_cosmo
 from data_processing.process_gpm import update_gpm_archive
@@ -28,7 +28,7 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
-        self.cosmo_folder = Path(r"data/cosmo")
+        self.cosmo_folder = Path(r"data/cosmo/")
 
     @property
     def most_recent_cosmo_date(self):

@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import PurePosixPath as Path
 from data_download.download_gpm import GpmDownload
 import logging
 import rioxarray
