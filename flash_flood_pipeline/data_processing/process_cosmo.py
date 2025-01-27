@@ -17,10 +17,12 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
 
     cosmo_data = {}
     logger.info(f"Opening {cosmo_path}")
-    xds = rioxarray.open_rasterio(cosmo_path)
-    print(xds)
-    xds.rio.write_crs("epsg:4326", inplace=True)
-
+    
+    xr_dataset = xr.open_dataset(cosmo_path)
+    xr_dataset = xr_dataset.rio.set_spatial_dims("rlat", "rlon")
+    xr_dataset = xr_dataset.rename({"rlat": "y", "rlon": "x"})
+    xds = xr_dataset.rio.write_crs("epsg:4326")
+    
     upscale_factor = 8
 
     new_width = xds.rio.width * upscale_factor
@@ -32,16 +34,17 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
     )
     
     datetime_list_forecast = [
-        datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
+        pd.Timestamp(x).to_pydatetime()
         for x in xds_upsampled_forecast.time.data[:]
-    ]
-
+    ]  
+    
     for _, row in ta_gdf_4326.iterrows():
         xds_clipped = xds_upsampled_forecast.rio.clip(
             [row["geometry"]], ta_gdf_4326.crs
         )
-        xds_clipped.data[xds_clipped.data > 1000] = np.nan
-        cum_mean_rain_ts = [np.nanmean(x) for x in xds_clipped.data]
+        xds_data_array = xds_clipped["tp"]
+        xds_data_array.data[xds_data_array.data > 1000] = np.nan
+        cum_mean_rain_ts = [np.nanmean(x) for x in xds_data_array.data]
         mean_rain_ts = [cum_mean_rain_ts[0]]
 
         for x in range(1, len(cum_mean_rain_ts)):
@@ -56,7 +59,6 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         cosmo_data[row["placeCode"]] = cosmo_data[row["placeCode"]].sort_values(
             "datetime", ascending=True
         )
-    
     individual_timeseries = []
 
     for col_name, timeseries in cosmo_data.items():
@@ -65,5 +67,4 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         individual_timeseries.append(values_renamed)
         
     cosmo_df = pd.concat(individual_timeseries, axis=1)
-    print(cosmo_df)
     return cosmo_df
