@@ -8,7 +8,7 @@ rioxarray==0.17.0
 h5py
 rasterstats
 xvec
-numpy==1.22
+numpy==1.26.4
 
  #10 0.701 Collecting geopandas
 #10 0.749   Downloading geopandas-1.0.1-py3-none-any.whl (323 kB)
