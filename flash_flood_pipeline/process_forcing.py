@@ -28,8 +28,6 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
-        logger.info(f"Trailing slash: {Path(r'data/cosmo/').glob('*')}")
-        logger.info(f"No trailing slash: {Path(r'data/cosmo').glob('*')}")
         
         self.cosmo_folder = Path(r"data/cosmo/")
 
