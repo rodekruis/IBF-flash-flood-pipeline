@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
-from pathlib import PurePosixPath as Path
+from pathlib import Path
 import xarray as xr
 import rioxarray
 from rasterio.enums import Resampling

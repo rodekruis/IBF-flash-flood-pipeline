@@ -1,5 +1,5 @@
 import geopandas as gpd
-from pathlib import PurePosixPath as Path
+from pathlib import Path
 import datetime
 from data_processing.process_cosmo import process_cosmo
 from data_processing.process_gpm import update_gpm_archive
@@ -28,10 +28,14 @@ class ForcingProcessor:
             .astimezone(datetime.timezone.utc)
             .replace(tzinfo=None)
         )
+        logger.info(f"Trailing slash: {Path(r'data/cosmo/').glob('*')}")
+        logger.info(f"No trailing slash: {Path(r'data/cosmo').glob('*')}")
+        
         self.cosmo_folder = Path(r"data/cosmo/")
 
     @property
     def most_recent_cosmo_date(self):
+        logger.info([f for f in self.cosmo_folder.glob("*.nc")])
         latest_cosmo_date = max(
             [
                 datetime.datetime.strptime(

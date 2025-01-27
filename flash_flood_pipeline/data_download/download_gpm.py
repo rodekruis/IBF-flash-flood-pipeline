@@ -6,7 +6,7 @@ import rasterio
 import h5py
 import pandas as pd
 import xarray as xr
-from pathlib import PurePosixPath as Path
+from pathlib import Path
 import rioxarray
 from concurrent.futures import ThreadPoolExecutor
 import logging
