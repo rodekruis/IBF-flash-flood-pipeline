@@ -1,5 +1,5 @@
 import rasterio
-from pathlib import PurePosixPath as Path
+from pathlib import Path
 
 
 def clip_rasters_on_ta(ta_df, data_folder, output_folder):

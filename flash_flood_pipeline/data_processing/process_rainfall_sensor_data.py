@@ -10,7 +10,7 @@ import json
 from settings.base import BLANTYRE_RAINFALL_SENSORS, METEO_RAIN_SENSOR, ENVIRONMENT
 from itertools import compress
 import logging
-from pathlib import PurePosixPath as Path
+from pathlib import Path
 import numpy as np
 logger = logging.getLogger(__name__)
 
