@@ -46,7 +46,7 @@ def write_forcing_dict_to_csv(forcing_dict, output_loc):
         ts = v.copy()
         ts = ts.rename(columns={"precipitation": k})
         ts = ts.set_index("datetime")
-        ts.index = pd.to_time(ts.index)
+        ts.index = pd.to_datetime(ts.index)
         ts_coll.append(ts)
     
     pd.concat(ts_coll, axis=1).to_csv(output_loc)
