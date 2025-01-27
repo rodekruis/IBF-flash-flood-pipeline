@@ -19,7 +19,7 @@ def configure_logger():
     console.setLevel(logging.INFO)
 
     log_file = logging.FileHandler(
-        rf"data/{ENVIRONMENT}/logs/container_log_{datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log"
+        rf"data/{ENVIRONMENT}/logs/container_log_{datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.txt"
     )
     log_file.setLevel(logging.INFO)
 
