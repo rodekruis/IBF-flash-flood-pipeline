@@ -21,6 +21,7 @@ from settings.base import (
     SEVERITY_ORDER_DISTRICT_MAPPING,
     EVENT_TRIGGER_HOURS,
     UPSTREAM_MAP,
+    ENVIRONMENT,
 )
 
 COLUMNAME = "precipitation"
@@ -115,9 +116,7 @@ class scenarioSelector:
                 df.drop(columns=["1hr", "2hr", "4hr"], inplace=True)
 
             for column in df.columns:
-                df[column] = (
-                    df[column].astype(int).astype(str) + "mm_" + str(column)
-                )
+                df[column] = df[column].astype(int).astype(str) + "mm_" + str(column)
 
         return gfs_data
 
@@ -171,6 +170,19 @@ class scenarioSelector:
             df["time_reference"] = (
                 (df.index - datetime.now()) / pd.Timedelta("1 hour")
             ).astype(int)
+
+        ts_events = []
+        for k, v in event_data.items():
+            timeseries_event = v.copy()
+            timeseries_event = timeseries_event.rename(
+                columns={c: f"{c}_{k}" for c in timeseries_event.columns}
+            )
+            ts_events.append(timeseries_event)
+
+        all_timeseries_events = pd.concat(ts_events, axis=1)
+        all_timeseries_events.to_csv(
+            rf"data/{ENVIRONMENT}/debug_output/event_selector_output_{datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+        )
 
         karonga_leadtimes = []
         karonga_events = {}
