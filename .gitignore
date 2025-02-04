@@ -18,8 +18,10 @@ data
 *.nc
 *.csv
 
+
 # Local data files
 pipeline/data
+pipeline/flash_flood_pipeline/settings/credentials.py
 pipeline/lib/flash_flood_model/flood_pipeline_stuff
 *.shp
 *.geojson

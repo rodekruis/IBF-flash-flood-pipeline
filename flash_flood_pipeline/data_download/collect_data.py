@@ -3,14 +3,16 @@ import numpy as np
 import pandas as pd
 import netCDF4 as nc
 from pathlib import Path
+import xarray as xr
 import rioxarray
 from rasterio.enums import Resampling
 import os
 import json
+from data_download.download_gpm import GpmDownload
 from data_download.get_gauge_from_gmail import get_satellite_data
 from data_download.utils.tunnel_fast import tunnel_fast
 from data_download.utils.extract_lat_lon import extract_lat_lon
-from data_download.process_compacted_iridium_data import (
+from data_processing.process_compacted_iridium_data import (
     process_compacted_data,
 )
 from utils.general_utils.round_to_nearest_hour import (
@@ -29,6 +31,12 @@ logger = logging.getLogger(__name__)
 class dataGetter:
     def __init__(self, ta_gdf):
         self.ta_gdf = ta_gdf
+        self.malawi_bbox = (
+            31.0000000000000000,  # lon min
+            -19.0000000000000000,  # lat min
+            38.0000000000000000,  # lon max
+            -7.0000000000000000,  # lat max
+        )
 
     def gather_satellite_data(self):
         filename_list = get_satellite_data()
@@ -248,6 +256,37 @@ class dataGetter:
                     forecast_start.strftime("%Y%m%d"), forecast_start_hour
                 )
             )
+            # xr_dataset_hindcast = xr.open_dataset(
+            #     xr.backends.NetCDF4DataStore(nc_dataset_hindcast)
+            # )
+            # xr_dataset_hindcast = xr_dataset_hindcast.rio.set_spatial_dims("lon", "lat")
+            # xr_dataset_hindcast = xr_dataset_hindcast.rio.write_crs("epsg:4326")
+
+            # xr_dataset_hindcast = xr_dataset_hindcast.rio.clip_box(*self.malawi_bbox)
+
+            # xr_dataset_forecast = xr.open_dataset(
+            #     xr.backends.NetCDF4DataStore(nc_dataset_forecast)
+            # )
+            # xr_dataset_forecast = xr_dataset_forecast.rio.set_spatial_dims("lon", "lat")
+            # xr_dataset_forecast = xr_dataset_forecast.rio.write_crs("epsg:4326")
+
+            # xr_dataset_forecast = xr_dataset_forecast.rio.clip_box(*self.malawi_bbox)
+
+            # vars_to_drop = [
+            #     x
+            #     for x in xr_dataset_forecast.variables
+            #     if x not in ["time", "lat", "lon", "apcpsfc"]
+            # ]
+
+            # xr_dataset_hindcast = xr_dataset_hindcast.drop_vars(vars_to_drop)
+            # xr_dataset_forecast = xr_dataset_forecast.drop_vars(vars_to_drop)
+
+            # xr_dataset_hindcast.to_netcdf(
+            #     r"d:\VSCode\IBF-flash-flood-pipeline\data\GFS\xr_hindcast.nc"
+            # )
+            # xr_dataset_forecast.to_netcdf(
+            #     r"d:\VSCode\IBF-flash-flood-pipeline\data\GFS\xr_forecast.nc"
+            # )
 
             latvar_hind, lonvar_hind = extract_lat_lon(ds=nc_dataset_hindcast)
             latvar_fc, lonvar_fc = extract_lat_lon(ds=nc_dataset_forecast)
@@ -310,15 +349,29 @@ class dataGetter:
                     subset="datetime", keep="last"
                 )
                 gfs_data[row["placeCode"]] = gfs_precipitation
+
+            # combined_rainfall = []
+            # for _, val in gfs_data.items():
+            #     val = val.set_index("datetime")
+            #     combined_rainfall.append(val)
+
+            # pd.concat(combined_rainfall, axis=1).to_csv(
+            #     r"d:\VSCode\IBF-flash-flood-pipeline\data\gfs_rainfall_prediction.csv"
+            # )
+
         else:
             logger.info("Retrieving COSMO-data")
             ta_gdf_4326 = self.ta_gdf.copy()
             ta_gdf_4326.to_crs(4326, inplace=True)
 
+            logger.info("open_rasterio COSMO-data")
             xds = rioxarray.open_rasterio(expected_cosmo_forecast_path)
+            
+            logger.info("write_crs COSMO-data")
             xds.rio.write_crs("epsg:4326", inplace=True)
 
             upscale_factor = 8
+            logger.info("Upscaling/reprojecting COSMO-data")
             new_width = xds.rio.width * upscale_factor
             new_height = xds.rio.height * upscale_factor
             xds_upsampled_forecast = xds.rio.reproject(
@@ -326,6 +379,7 @@ class dataGetter:
                 shape=(new_height, new_width),
                 resampling=Resampling.bilinear,
             )
+            logger.info("Done")
             datetime_list_forecast = [
                 datetime.strptime(x.isoformat(), "%Y-%m-%dT%H:%M:%S")
                 for x in xds_upsampled_forecast.time.data[:]
@@ -387,13 +441,5 @@ class dataGetter:
                 gfs_data[row["placeCode"]] = gfs_data[row["placeCode"]].sort_values(
                     "datetime", ascending=True
                 )
-
-        # combined_rainfall = []
-        # for _, val in gfs_data.items():
-        #     val = val.set_index("datetime")
-        #     combined_rainfall.append(val)
-
-        # pd.concat(combined_rainfall, axis=1).to_csv(
-        #     r"C:\Users\923265\Downloads\gfs_rainfall_prediction.csv"
 
         return gfs_data

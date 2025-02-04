@@ -2,7 +2,7 @@ from pathlib import Path
 
 # references
 DATA_FOLDER = Path("data/input_data")
-ENVIRONMENT = "prod"  # can be prod or test
+ENVIRONMENT = "prod"  # can be prod or dev
 
 # general
 ASSET_TYPES = [
@@ -15,9 +15,9 @@ ASSET_TYPES = [
 ]
 
 KARONGA_PLACECODES = [
-    "MW10106", 
-    "MW10104", 
-    "MW10203", 
+    "MW10106",
+    "MW10104",
+    "MW10203",
     "MW10220",
 ]
 
@@ -474,3 +474,12 @@ GFS_URL = "https://api.open-meteo.com/v1/gfs"
 # METEO_SENSOR_LIST = [125720411]
 WATERLEVEL_SENSOR = [125720411, 125718945]
 METEO_RAIN_SENSOR = "124107670"
+
+BLANTYRE_RAINFALL_SENSORS = {
+    "makata_primary": 125723797,
+    "bangwe_secondary": 125723733,
+    "southend_secondary": 125723391,
+    "soche_technical": 124108068,
+    "blantyre_waterboard_reservoir": 125718945,
+    "namiwawa_pvt": 124107836,
+}

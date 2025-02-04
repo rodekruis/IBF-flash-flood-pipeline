@@ -3,6 +3,7 @@ from datetime import datetime
 from utils.general_utils.convert_placecode_to_district import (
     convert_placecode_to_district,
 )
+
 import numpy as np
 from mapping_tables.event_mapping import (
     event_mapping_12hr,
@@ -20,6 +21,7 @@ from settings.base import (
     SEVERITY_ORDER_DISTRICT_MAPPING,
     EVENT_TRIGGER_HOURS,
     UPSTREAM_MAP,
+    ENVIRONMENT,
 )
 
 COLUMNAME = "precipitation"
@@ -76,6 +78,7 @@ class scenarioSelector:
             dfs = []
             for ta in upstream_tas:
                 dfs.append(gfs_data[ta])
+
             averages = (
                 pd.concat([each.stack() for each in dfs], axis=1)
                 .apply(lambda x: x.mean(), axis=1)
@@ -113,16 +116,7 @@ class scenarioSelector:
                 df.drop(columns=["1hr", "2hr", "4hr"], inplace=True)
 
             for column in df.columns:
-                if convert_placecode_to_district(place_code=key) == "Blantyre City":
-                    # round up to nearest 10 (since we did not calculate 5mm events for BC)
-                    df[column] = np.ceil(df[column] / 10.0) * 10
-                    df[column] = (
-                        df[column].astype(int).astype(str) + "mm_" + str(column)
-                    )
-                else:
-                    df[column] = (
-                        df[column].astype(int).astype(str) + "mm_" + str(column)
-                    )
+                df[column] = df[column].astype(int).astype(str) + "mm_" + str(column)
 
         return gfs_data
 
@@ -176,6 +170,19 @@ class scenarioSelector:
             df["time_reference"] = (
                 (df.index - datetime.now()) / pd.Timedelta("1 hour")
             ).astype(int)
+
+        ts_events = []
+        for k, v in event_data.items():
+            timeseries_event = v.copy()
+            timeseries_event = timeseries_event.rename(
+                columns={c: f"{c}_{k}" for c in timeseries_event.columns}
+            )
+            ts_events.append(timeseries_event)
+
+        all_timeseries_events = pd.concat(ts_events, axis=1)
+        all_timeseries_events.to_csv(
+            rf"data/{ENVIRONMENT}/debug_output/event_selector_output_{datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+        )
 
         karonga_leadtimes = []
         karonga_events = {}

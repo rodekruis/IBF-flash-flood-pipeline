@@ -12,24 +12,43 @@ from settings.base import (
     THRESHOLD_CORRECTION_VALUES,
 )
 from logger_config.configure_logger import configure_logger
-from data_download.collect_data import dataGetter
+from data_processing.process_compacted_iridium_data import gather_satellite_data
+from data_processing.process_rainfall_sensor_data import (
+    process_karonga_rainfall_sensor_data,
+    process_blantyre_rainfall_sensor_data,
+    blantyre_raingauge_idw,
+)
+from data_processing.process_waterlevel_sensor_data import (
+    process_waterlevel_sensor_data,
+)
 from data_upload.upload_results import DataUploader
 from data_upload.raster_uploader import RasterUploader
 from utils.raster_utils.clip_rasters_on_ta import clip_rasters_on_ta
 from utils.raster_utils.merge_rasters_gdal import merge_rasters_gdal
 from utils.vector_utils.combine_vector_data import combine_vector_data
 from utils.api import api_post_request
-
+from process_forcing import ForcingProcessor
 from scenario_selection.scenario_selector import scenarioSelector
 import pandas as pd
 import json
-import os
-
 import sys
+
 
 sys.path.append(r"d:\VSCode\IBF-flash-flood-pipeline")
 
 logger = logging.getLogger(__name__)
+
+
+def write_forcing_dict_to_csv(forcing_dict, output_loc):
+    ts_coll = []
+    for k, v in forcing_dict.items():
+        ts = v.copy()
+        ts = ts.rename(columns={"precipitation": k})
+        ts = ts.set_index("datetime")
+        ts.index = pd.to_datetime(ts.index)
+        ts_coll.append(ts)
+
+    pd.concat(ts_coll, axis=1).to_csv(output_loc)
 
 
 def determine_trigger_states(
@@ -194,14 +213,17 @@ def combine_events_and_upload_to_ibf(
         "step 3b started for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
     )
     raster_paths = clip_rasters_on_ta(
-        event_ta_gdf, DATA_FOLDER, Path("data/temp_rasters")
+        event_ta_gdf, DATA_FOLDER, Path(f"data/{ENVIRONMENT}/temp_rasters")
     )
 
     if not skip_depth_upload:
         raster_paths += [rf"data/static_data/{ENVIRONMENT}/nodata_ibf.tif"]
         raster_paths += additional_raster_paths
         merge_rasters_gdal(
-            "data/flood_extent_" + str(lead_time) + "-hour_MWI.tif", raster_paths
+            f"data/{ENVIRONMENT}/flood_extents/flood_extent_"
+            + str(lead_time)
+            + "-hour_MWI.tif",
+            raster_paths,
         )
     logger.info(
         "step 3b finished for raster data: clip and stitch data from one scenario per ta to one file for all tas together"
@@ -229,7 +251,9 @@ def combine_events_and_upload_to_ibf(
 
     if not skip_depth_upload:
         raster_uploader = RasterUploader(
-            raster_files=[f"data/flood_extent_{str(lead_time)}-hour_MWI.tif"]
+            raster_files=[
+                f"data/{ENVIRONMENT}/flood_extents/flood_extent_{str(lead_time)}-hour_MWI.tif"
+            ]
         )
         raster_uploader.upload_raster_file()
 
@@ -252,55 +276,90 @@ def historic_event_management(
     blantyre_trigger,
     blantyre_events,
 ):
-    leadtime_0_dict = {}
+
+    leadtime_0_library_path = Path(rf"data/{ENVIRONMENT}/events/leadtime_0_events.json")
+
+    if leadtime_0_library_path.exists():
+        with open(
+            leadtime_0_library_path,
+            "r",
+        ) as event_file:
+            leadtime_0_dict = json.load(event_file)
+    else:
+        leadtime_0_dict = {}
+
+    write_date = datetime.datetime.now().strftime("%d-%m-%Y_%H_%M")
+
+    new_leadtime0_dict = {}
+
     if karonga_trigger and karonga_leadtime == 0:
-        leadtime_0_dict["karonga"] = karonga_events
+        new_leadtime0_dict["karonga"] = karonga_events
     if rumphi_trigger and rumphi_leadtime == 0:
-        leadtime_0_dict["rumphi"] = rumphi_events
+        new_leadtime0_dict["rumphi"] = rumphi_events
     if blantyre_trigger and blantyre_leadtime == 0:
-        leadtime_0_dict["blantyre"] = blantyre_events
+        new_leadtime0_dict["blantyre"] = blantyre_events
+
+    leadtime_0_dict[write_date] = new_leadtime0_dict
+
     if leadtime_0_dict:
         with open(
-            "data/events/leadtime_0_events_{}.json".format(
-                datetime.datetime.now().strftime("%d-%m-%Y_%H")
-            ),
+            leadtime_0_library_path,
             "w",
         ) as outfile:
             json.dump(leadtime_0_dict, outfile)
 
-    event_files = [
-        f
-        for f in os.listdir("data/events")
-        if os.path.isfile(os.path.join("data/events", f))
-    ]
-    event_files_dates = [
-        datetime.datetime.strptime(filename, "leadtime_0_events_%d-%m-%Y_%H.json")
-        for filename in event_files
-    ]
-    if event_files_dates:
-        latest_event = max(event_files_dates)
-        if latest_event > datetime.datetime.now() - datetime.timedelta(days=5):
-            with open(
-                "data/events/leadtime_0_events_{}.json".format(
-                    latest_event.strftime("%d-%m-%Y_%H")
-                ),
-                "r",
-            ) as event_file:
-                historic_event = json.load(event_file)
-        if historic_event:
-            for key, value in historic_event.items():
-                if key == "karonga":
-                    karonga_leadtime = 0
-                    karonga_trigger = True
-                    karonga_events = value
-                if key == "rumphi":
-                    rumphi_leadtime = 0
-                    rumphi_trigger = True
-                    rumphi_events = value
-                if key == "blantyre":
-                    blantyre_leadtime = 0
-                    blantyre_trigger = True
-                    blantyre_events = value
+    with open(leadtime_0_library_path, "r") as event_file:
+        historic_event = json.load(event_file)
+        historic_event_dataframe = pd.DataFrame.from_dict(historic_event).T
+
+        historic_event_dataframe.index = pd.to_datetime(
+            historic_event_dataframe.index, format="%d-%m-%Y_%H_%M"
+        )
+        historic_event_dataframe = historic_event_dataframe.sort_index(ascending=False)
+
+        # filter on max 5 days in past
+        recent_historic_event_dataframe = historic_event_dataframe.loc[
+            historic_event_dataframe.index
+            > datetime.datetime.now() - datetime.timedelta(days=5)
+        ]
+
+        if "karonga" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            karonga_leadtime = 0
+            karonga_trigger = True
+            karonga_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["karonga"]].first_valid_index(),
+                "karonga",
+            ]
+        if "rumphi" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            rumphi_leadtime = 0
+            rumphi_trigger = True
+            rumphi_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["rumphi"]].first_valid_index(),
+                "rumphi",
+            ]
+        if "blantyre" in recent_historic_event_dataframe.columns and not all(
+            [
+                pd.isnull(event)
+                for event in recent_historic_event_dataframe["karonga"].tolist()
+            ]
+        ):
+            blantyre_leadtime = 0
+            blantyre_trigger = True
+            blantyre_events = recent_historic_event_dataframe.loc[
+                recent_historic_event_dataframe[["blantyre"]].first_valid_index(),
+                "blantyre",
+            ]
+
     return (
         karonga_leadtime,
         karonga_trigger,
@@ -319,48 +378,105 @@ def main():
     configure_logger()
 
     startTime = time.time()
-    logger.info(str(datetime.datetime.now()))
+    logger.info(f"IBF-Pipeline start: {str(datetime.datetime.now())}")
 
     # step (1): get gfs data per ta
     ta_gdf = gpd.read_file(rf"data/static_data/{ENVIRONMENT}/regions.gpkg")
     ta_gdf = ta_gdf.to_crs(epsg=4326)  # ,allow_override=True)
-    logger.info("step 1 started: retrieving gfs data with API-request")
-    data_getter = dataGetter(ta_gdf)
-    gfs_data = data_getter.get_rain_forecast()
-    data_getter.gather_satellite_data()
 
+    logger.info("Step 1a: Retrieving forcing data")
+
+    fp = ForcingProcessor(ta_gdf=ta_gdf)
+    forcing_timeseries = fp.construct_forcing_timeseries()
+
+    logger.info("Step 1b: Retrieving satellite data")
+    gather_satellite_data()
+
+    logger.info("Step 1c: Retrieving waterlevel sensor data")
     (
         gauges_actual_data_dict,
         gauges_reference_value_dict,
         gauges_yesterday_dict,
-    ) = data_getter.get_sensor_values()
+    ) = process_waterlevel_sensor_data()
 
-    rain_sensor_data = data_getter.get_rain_gauge()
+    forcing_start_date = list(forcing_timeseries.values())[0].loc[0, "datetime"]
 
-    if rain_sensor_data is not None:
-        start_raingauge = rain_sensor_data.iloc[1].datetime
+    karonga_rainfall_sensor_data = process_karonga_rainfall_sensor_data(
+        start_date=forcing_start_date
+    )
 
-        end_raingauge = rain_sensor_data.iloc[-1].datetime
-        df = gfs_data["MW10407"].drop(
-            gfs_data["MW10407"]
+    write_forcing_dict_to_csv(
+        forcing_dict=forcing_timeseries,
+        output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_before_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+    )
+
+    if karonga_rainfall_sensor_data is not None:
+        logger.info(
+            "Step 1c.1: Overwriting satellite forcing with Karonga rainfall sensor data"
+        )
+        start_raingauge = karonga_rainfall_sensor_data.iloc[1].datetime
+
+        end_raingauge = karonga_rainfall_sensor_data.iloc[-1].datetime
+
+        df = forcing_timeseries["MW10407"].drop(
+            forcing_timeseries["MW10407"]
             .loc[
-                (gfs_data["MW10407"]["datetime"] > start_raingauge)
-                & (gfs_data["MW10407"]["datetime"] <= end_raingauge)
+                (forcing_timeseries["MW10407"]["datetime"] > start_raingauge)
+                & (forcing_timeseries["MW10407"]["datetime"] <= end_raingauge)
             ]
             .index
         )
-        df_combined = pd.concat([rain_sensor_data, df], axis=0, ignore_index=True)
+        df_combined = pd.concat(
+            [karonga_rainfall_sensor_data, df], axis=0, ignore_index=True
+        )
         df_combined.drop_duplicates(subset=["datetime"], inplace=True, keep="first")
 
         df_combined.sort_values(by=["datetime"], inplace=True)
-        gfs_data["MW10407"] = df_combined
+        forcing_timeseries["MW10407"] = df_combined
 
-    logger.info("step 1 finished: retrieving GFS/COSMO data with API-request")
-    logger.info(str(datetime.datetime.now()))
+    blantyre_rainfall_sensor_data = process_blantyre_rainfall_sensor_data()
+
+    blantyre_raingauge_data_idw = blantyre_raingauge_idw(
+        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data
+    )
+
+    if len(blantyre_raingauge_data_idw) > 0:
+        for ta in blantyre_raingauge_data_idw.columns:
+            start_raingauge = blantyre_raingauge_data_idw.index[0]
+            end_raingauge = blantyre_raingauge_data_idw.index[-1]
+
+            gauge_data = blantyre_raingauge_data_idw[[ta]].copy()
+            gauge_data = gauge_data.reset_index(names="datetime").rename(
+                columns={ta: "precipitation"}
+            )
+
+            df = forcing_timeseries[ta].drop(
+                forcing_timeseries[ta]
+                .loc[
+                    (forcing_timeseries[ta]["datetime"] > start_raingauge)
+                    & (forcing_timeseries[ta]["datetime"] <= end_raingauge)
+                ]
+                .index
+            )
+            df_combined = pd.concat([gauge_data, df], axis=0, ignore_index=True)
+            df_combined = df_combined.drop_duplicates(subset=["datetime"], keep="first")
+
+            df_combined = df_combined.sort_values(by=["datetime"])
+            forcing_timeseries[ta] = df_combined
+
+    write_forcing_dict_to_csv(
+        forcing_dict=forcing_timeseries,
+        output_loc=rf"data/{ENVIRONMENT}/debug_output/forcing_ts_after_gauge_{datetime.datetime.now().strftime('%Y-%m-%d-%H')}.csv",
+    )
+
+    blantyre_rainfall_sensor_data.to_csv(
+        rf"data/{ENVIRONMENT}/debug_output/blantyre_sensors_ts_{datetime.datetime.now().strftime('%Y-%m-%d_%H')}.csv"
+    )
 
     # step (2): scenarioselector: choose scenario per ta
-    logger.info("step 2 started: scenario selection")
-    scenarios_selector = scenarioSelector(gfs_data=gfs_data)
+    logger.info("Step 2: Scenario selection")
+
+    scenarios_selector = scenarioSelector(gfs_data=forcing_timeseries)
     (
         karonga_leadtime,
         karonga_events,
@@ -370,8 +486,9 @@ def main():
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
 
+
     logger.info("step 2 finished: scenario selection")
-    logger.info(str(datetime.datetime.now()))
+    # logger.info(str(datetime.datetime.now()))
 
     karonga_trigger, rumphi_trigger, blantyre_trigger = determine_trigger_states(
         karonga_events=karonga_events,

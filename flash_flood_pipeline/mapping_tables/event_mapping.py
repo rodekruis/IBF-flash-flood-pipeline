@@ -25,8 +25,8 @@ def event_mapping_24hr(number):
     Returns:
         Mapped number (int): Precipiation sum amount according to a defined 24hr event
     """
-
     rounded_number = round(number / 25) * 25
+    
     if min(rounded_number, PrecipitationSum.UPPER_VALUE_24HR_EVENT.value) == 25:
         number = 0
     else:
@@ -44,8 +44,13 @@ def event_mapping_48hr(number):
     Returns:
         Mapped number (int): Precipiation sum amount according to a defined 48hr event
     """
+    
     rounded_number = round(number / 50) * 50
-    return min(rounded_number, PrecipitationSum.UPPER_VALUE_48HR_EVENT.value)
+
+    if number < 37.5: # CUSTOM TEMPORARY MAPPING 
+        return 0
+    else:
+        return min(rounded_number, PrecipitationSum.UPPER_VALUE_48HR_EVENT.value)
 
 
 def event_mapping_4hr(number):
@@ -79,6 +84,7 @@ def event_mapping_2hr(number):
 def event_mapping_1hr(number):
     """
     Map the precipiation sum amount for an 1hr event to a value of 5,10,15,20,25,30,35,40,45 or max 50 mm.
+    TEMPORAL CORRECTION: Map the precipiation sum amount for an 1hr event to a value of 10,20,30,40 or max 50 mm.
 
     Args:
         number (float): precipitation sum amount to apply the mapping to
@@ -86,5 +92,5 @@ def event_mapping_1hr(number):
     Returns:
         Mapped number (int): Precipiation sum amount according to a defined 1hr event
     """
-    rounded_number = round(number / 5) * 5
+    rounded_number = round(number / 10) * 10
     return min(rounded_number, PrecipitationSum.UPPER_VALUE_1HR_EVENT.value)
