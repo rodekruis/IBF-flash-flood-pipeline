@@ -115,16 +115,9 @@ class scenarioSelector:
                 df.drop(columns=["1hr", "2hr", "4hr"], inplace=True)
 
             for column in df.columns:
-                if convert_placecode_to_district(place_code=key) == "Blantyre City":
-                    # round up to nearest 10 (since we did not calculate 5mm events for BC)
-                    df[column] = np.ceil(df[column] / 10.0) * 10
-                    df[column] = (
-                        df[column].astype(int).astype(str) + "mm_" + str(column)
-                    )
-                else:
-                    df[column] = (
-                        df[column].astype(int).astype(str) + "mm_" + str(column)
-                    )
+                df[column] = (
+                    df[column].astype(int).astype(str) + "mm_" + str(column)
+                )
 
         return gfs_data
 

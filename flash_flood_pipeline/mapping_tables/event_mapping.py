@@ -84,6 +84,7 @@ def event_mapping_2hr(number):
 def event_mapping_1hr(number):
     """
     Map the precipiation sum amount for an 1hr event to a value of 5,10,15,20,25,30,35,40,45 or max 50 mm.
+    TEMPORAL CORRECTION: Map the precipiation sum amount for an 1hr event to a value of 10,20,30,40 or max 50 mm.
 
     Args:
         number (float): precipitation sum amount to apply the mapping to
@@ -91,5 +92,5 @@ def event_mapping_1hr(number):
     Returns:
         Mapped number (int): Precipiation sum amount according to a defined 1hr event
     """
-    rounded_number = round(number / 5) * 5
+    rounded_number = round(number / 10) * 10
     return min(rounded_number, PrecipitationSum.UPPER_VALUE_1HR_EVENT.value)
