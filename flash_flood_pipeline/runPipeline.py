@@ -31,9 +31,8 @@ from process_forcing import ForcingProcessor
 from scenario_selection.scenario_selector import scenarioSelector
 import pandas as pd
 import json
-import os
-
 import sys
+
 
 sys.path.append(r"d:\VSCode\IBF-flash-flood-pipeline")
 
@@ -441,28 +440,29 @@ def main():
         ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data
     )
 
-    for ta in blantyre_raingauge_data_idw.columns:
-        start_raingauge = blantyre_raingauge_data_idw.index[0]
-        end_raingauge = blantyre_raingauge_data_idw.index[-1]
+    if len(blantyre_raingauge_data_idw) > 0:
+        for ta in blantyre_raingauge_data_idw.columns:
+            start_raingauge = blantyre_raingauge_data_idw.index[0]
+            end_raingauge = blantyre_raingauge_data_idw.index[-1]
 
-        gauge_data = blantyre_raingauge_data_idw[[ta]].copy()
-        gauge_data = gauge_data.reset_index(names="datetime").rename(
-            columns={ta: "precipitation"}
-        )
+            gauge_data = blantyre_raingauge_data_idw[[ta]].copy()
+            gauge_data = gauge_data.reset_index(names="datetime").rename(
+                columns={ta: "precipitation"}
+            )
 
-        df = forcing_timeseries[ta].drop(
-            forcing_timeseries[ta]
-            .loc[
-                (forcing_timeseries[ta]["datetime"] > start_raingauge)
-                & (forcing_timeseries[ta]["datetime"] <= end_raingauge)
-            ]
-            .index
-        )
-        df_combined = pd.concat([gauge_data, df], axis=0, ignore_index=True)
-        df_combined = df_combined.drop_duplicates(subset=["datetime"], keep="first")
+            df = forcing_timeseries[ta].drop(
+                forcing_timeseries[ta]
+                .loc[
+                    (forcing_timeseries[ta]["datetime"] > start_raingauge)
+                    & (forcing_timeseries[ta]["datetime"] <= end_raingauge)
+                ]
+                .index
+            )
+            df_combined = pd.concat([gauge_data, df], axis=0, ignore_index=True)
+            df_combined = df_combined.drop_duplicates(subset=["datetime"], keep="first")
 
-        df_combined = df_combined.sort_values(by=["datetime"])
-        forcing_timeseries[ta] = df_combined
+            df_combined = df_combined.sort_values(by=["datetime"])
+            forcing_timeseries[ta] = df_combined
 
     write_forcing_dict_to_csv(
         forcing_dict=forcing_timeseries,
@@ -485,6 +485,7 @@ def main():
         blantyre_leadtime,
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
+
 
     logger.info("step 2 finished: scenario selection")
     # logger.info(str(datetime.datetime.now()))
