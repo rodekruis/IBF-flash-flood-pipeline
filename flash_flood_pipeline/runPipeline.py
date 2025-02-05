@@ -496,6 +496,18 @@ def main():
         blantyre_events=blantyre_events,
     )
 
+    logger.info(f"karonga_leadtime before: {karonga_leadtime}")
+    logger.info(f"karonga_trigger before: {karonga_trigger}")
+    logger.info(f"karonga_events before: {karonga_events}")
+    
+    logger.info(f"rumphi_leadtime before: {rumphi_leadtime}")
+    logger.info(f"rumphi_trigger before: {rumphi_trigger}")
+    logger.info(f"rumphi_events before: {rumphi_events}")
+    
+    logger.info(f"blantyre_leadtime: {blantyre_leadtime}")
+    logger.info(f"blantyre_trigger: {blantyre_trigger}")
+    logger.info(f"blantyre_events: {blantyre_events}")
+
     (
         karonga_leadtime,
         karonga_trigger,
@@ -518,6 +530,18 @@ def main():
         blantyre_events,
     )
 
+    logger.info(f"karonga_leadtime after: {karonga_leadtime}")
+    logger.info(f"karonga_trigger after: {karonga_trigger}")
+    logger.info(f"karonga_events after: {karonga_events}")
+    
+    logger.info(f"rumphi_leadtime after: {rumphi_leadtime}")
+    logger.info(f"rumphi_trigger after: {rumphi_trigger}")
+    logger.info(f"rumphi_events after: {rumphi_events}")
+    
+    logger.info(f"blantyre_leadtime after: {blantyre_leadtime}")
+    logger.info(f"blantyre_trigger after: {blantyre_trigger}")
+    logger.info(f"blantyre_events after: {blantyre_events}")
+    
     region_trigger_metadata = pd.DataFrame(
         data={
             "region": ["Karonga", "Rumphi", "Blantyre"],
