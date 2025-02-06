@@ -338,7 +338,7 @@ def historic_event_management(
         if "rumphi" in recent_historic_event_dataframe.columns and not all(
             [
                 pd.isnull(event)
-                for event in recent_historic_event_dataframe["karonga"].tolist()
+                for event in recent_historic_event_dataframe["rumphi"].tolist()
             ]
         ):
             rumphi_leadtime = 0
@@ -350,7 +350,7 @@ def historic_event_management(
         if "blantyre" in recent_historic_event_dataframe.columns and not all(
             [
                 pd.isnull(event)
-                for event in recent_historic_event_dataframe["karonga"].tolist()
+                for event in recent_historic_event_dataframe["blantyre"].tolist()
             ]
         ):
             blantyre_leadtime = 0
@@ -486,7 +486,6 @@ def main():
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
 
-
     logger.info("step 2 finished: scenario selection")
     # logger.info(str(datetime.datetime.now()))
 
@@ -499,11 +498,11 @@ def main():
     logger.info(f"karonga_leadtime before: {karonga_leadtime}")
     logger.info(f"karonga_trigger before: {karonga_trigger}")
     logger.info(f"karonga_events before: {karonga_events}")
-    
+
     logger.info(f"rumphi_leadtime before: {rumphi_leadtime}")
     logger.info(f"rumphi_trigger before: {rumphi_trigger}")
     logger.info(f"rumphi_events before: {rumphi_events}")
-    
+
     logger.info(f"blantyre_leadtime: {blantyre_leadtime}")
     logger.info(f"blantyre_trigger: {blantyre_trigger}")
     logger.info(f"blantyre_events: {blantyre_events}")
@@ -533,15 +532,15 @@ def main():
     logger.info(f"karonga_leadtime after: {karonga_leadtime}")
     logger.info(f"karonga_trigger after: {karonga_trigger}")
     logger.info(f"karonga_events after: {karonga_events}")
-    
+
     logger.info(f"rumphi_leadtime after: {rumphi_leadtime}")
     logger.info(f"rumphi_trigger after: {rumphi_trigger}")
     logger.info(f"rumphi_events after: {rumphi_events}")
-    
+
     logger.info(f"blantyre_leadtime after: {blantyre_leadtime}")
     logger.info(f"blantyre_trigger after: {blantyre_trigger}")
     logger.info(f"blantyre_events after: {blantyre_events}")
-    
+
     region_trigger_metadata = pd.DataFrame(
         data={
             "region": ["Karonga", "Rumphi", "Blantyre"],
@@ -626,7 +625,7 @@ def main():
             date=date,
         )
         portal_resetter.untrigger_portal()
-        print("untrigger portal")
+        logger.info("Untriggered portal")
 
     logger.info("Closing Events...")
 
