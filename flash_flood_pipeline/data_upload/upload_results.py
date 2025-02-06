@@ -77,8 +77,7 @@ class DataUploader:
         to the IBF-portal with the dynamic indicator "alert_threshold" = 1
         """
         ta_exposure_trigger = self.TA_exposure.copy()
-        print(ta_exposure_trigger)
-
+        
         def determine_ta_trigger_state(row):
             if row["placeCode"] in THRESHOLD_CORRECTION_VALUES:
                 threshold = int(
@@ -107,7 +106,7 @@ class DataUploader:
         ta_exposure_trigger["trigger_value"] = ta_exposure_trigger.apply(
             lambda row: determine_ta_trigger_state(row), axis=1
         )
-
+        
         df_triggered_tas_blantyre = ta_exposure_trigger.loc[
             ta_exposure_trigger["placeCode"].isin(BLANTYRE_PLACECODES)
         ]
@@ -117,16 +116,12 @@ class DataUploader:
         df_triggered_tas_rumphi = ta_exposure_trigger.loc[
             ta_exposure_trigger["placeCode"].isin(RUMPHI_PLACECODES)
         ]
-
         event_mapping = {
             "Blantyre City": df_triggered_tas_blantyre,
             "Karonga": df_triggered_tas_karonga,
             "Rumphi": df_triggered_tas_rumphi,
         }
-
-        for distr_name, triggered_tas in event_mapping.items():
-            exposed_tas = triggered_tas.loc[triggered_tas["trigger_value"] == 1]
-
+        for distr_name, exposed_tas in event_mapping.items():
             if len(exposed_tas) > 0:
                 for key, value in EXPOSURE_TYPES.items():
                     exposure_df = exposed_tas.astype({key: "float"}).astype(
@@ -159,7 +154,6 @@ class DataUploader:
                     .to_dict("records")
                 )
                 body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                print(body)
                 api_post_request("admin-area-dynamic-data/exposure", body=body)
 
     def expose_point_assets(self):
@@ -191,8 +185,6 @@ class DataUploader:
             "waterpoints_internal": exposed_waterpoints,
             "health_sites": exposed_healthsites,
         }.items():
-            print(point_data_category)
-            print(exposed_fids)
             if exposed_fids:
                 dynamic_post_body = {
                     "pointDataCategory": point_data_category,
