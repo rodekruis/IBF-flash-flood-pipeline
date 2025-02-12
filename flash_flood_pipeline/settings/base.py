@@ -151,6 +151,7 @@ EVENT_SEVERITY_ORDER_URBAN_TUP = [
     (40, 1),
     (60, 2),
     (50, 1),
+    (60, 1),
 ]
 
 EVENT_SEVERITY_ORDER_TUP = [
@@ -240,6 +241,7 @@ EVENT_SEVERITY_ORDER_URBAN = [
     "40mm_1hr",
     "60mm_2hr",
     "50mm_1hr",
+    "60mm_1hr",
 ]
 
 EVENT_SEVERITY_ORDER = [
