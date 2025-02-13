@@ -495,18 +495,6 @@ def main():
         blantyre_events=blantyre_events,
     )
 
-    logger.info(f"karonga_leadtime before: {karonga_leadtime}")
-    logger.info(f"karonga_trigger before: {karonga_trigger}")
-    logger.info(f"karonga_events before: {karonga_events}")
-
-    logger.info(f"rumphi_leadtime before: {rumphi_leadtime}")
-    logger.info(f"rumphi_trigger before: {rumphi_trigger}")
-    logger.info(f"rumphi_events before: {rumphi_events}")
-
-    logger.info(f"blantyre_leadtime: {blantyre_leadtime}")
-    logger.info(f"blantyre_trigger: {blantyre_trigger}")
-    logger.info(f"blantyre_events: {blantyre_events}")
-
     (
         karonga_leadtime,
         karonga_trigger,
@@ -529,17 +517,22 @@ def main():
         blantyre_events,
     )
 
-    logger.info(f"karonga_leadtime after: {karonga_leadtime}")
-    logger.info(f"karonga_trigger after: {karonga_trigger}")
-    logger.info(f"karonga_events after: {karonga_events}")
+    karonga_events = {
+        "MW10104": "100mm_12hr",
+        "MW10106": "100mm_12hr",
+        "MW10203": "100mm_12hr",
+    }
+    karonga_trigger = True
+    karonga_leadtime = 9
 
-    logger.info(f"rumphi_leadtime after: {rumphi_leadtime}")
-    logger.info(f"rumphi_trigger after: {rumphi_trigger}")
-    logger.info(f"rumphi_events after: {rumphi_events}")
-
-    logger.info(f"blantyre_leadtime after: {blantyre_leadtime}")
-    logger.info(f"blantyre_trigger after: {blantyre_trigger}")
-    logger.info(f"blantyre_events after: {blantyre_events}")
+    blantyre_events = {
+        "MW31531": "50mm_1hr",
+        "MW31532": "50mm_1hr",
+        "MW31533": "50mm_1hr",
+        "MW31534": "50mm_1hr",
+    }
+    blantyre_trigger = True
+    blantyre_leadtime = 18
 
     region_trigger_metadata = pd.DataFrame(
         data={

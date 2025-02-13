@@ -34,7 +34,6 @@ class GpmDownload:
         self.base_url = "https://gpm2.gesdisc.eosdis.nasa.gov/"
         self.missing_days = []
         self.download_path = download_path
-        logger.info(f"Download path: {self.download_path} - {self.download_path.exists()}")
 
         self.malawi_bounds = (
             31.0000000000000000,  # lon min
@@ -227,6 +226,8 @@ class GpmDownload:
         da = xr.concat([f for f in xr_datasets], dim=time).rename("gpm_precipitation")
         da = da.rio.write_crs("epsg:4326")
         da = da.rio.set_spatial_dims("x", "y")
+        da = da.isel(band=0)
+
         da = da.drop("band")
 
         output_path = Path(r"data/gpm/gpm_rolling_week.nc")

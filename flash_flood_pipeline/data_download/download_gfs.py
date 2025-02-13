@@ -16,6 +16,10 @@ from utils.general_utils.round_to_nearest_hour import (
 )
 import logging
 import geopandas as gpd
+import warnings
+
+warnings.filterwarnings("ignore")
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +29,7 @@ def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
 
     xr_dataset = xr_dataset.rio.set_spatial_dims("lat", "lon")
     xr_dataset = xr_dataset.rio.write_crs("epsg:4326")
-    
+
     vars_to_drop = [
         x
         for x in xr_dataset.variables
@@ -74,9 +78,6 @@ class GfsDownload:
 
     def retrieve(self):
         logger.info("GfsDownload - Retrieving GFS-precipitation data")
-        url = "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
-            self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
-        )
 
         nc_dataset_forecast = nc.Dataset(
             "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
@@ -90,7 +91,7 @@ class GfsDownload:
             bbox=self.malawi_bbox,
             parameter_to_obtain=self.gfs_parameter_to_obtain,
         )
-   
+
         upscale_factor = 8
 
         new_width = xr_dataset.rio.width * upscale_factor
@@ -100,7 +101,6 @@ class GfsDownload:
             shape=(new_height, new_width),
             resampling=Resampling.bilinear,
         )
-
         return xr_dataset_upsampled
 
     def sample(self, dataset):
@@ -121,6 +121,7 @@ class GfsDownload:
             ].iloc[0],
             axis=1,
         )
+        gfs_rainfall = gfs_rainfall.reset_index(drop=True)
         gfs_rainfall_pvt = gfs_rainfall.pivot(
             index="time", columns="ta", values=self.gfs_parameter_to_obtain
         )

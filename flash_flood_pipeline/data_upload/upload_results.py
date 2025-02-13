@@ -77,7 +77,11 @@ class DataUploader:
         to the IBF-portal with the dynamic indicator "alert_threshold" = 1
         """
         ta_exposure_trigger = self.TA_exposure.copy()
-        
+
+        # 1 = trigger
+        # 0 + event name = warning
+        # 0 = no event
+
         def determine_ta_trigger_state(row):
             if row["placeCode"] in THRESHOLD_CORRECTION_VALUES:
                 threshold = int(
@@ -90,9 +94,7 @@ class DataUploader:
             else:
                 threshold = ALERT_THRESHOLD_VALUE
 
-            if pd.isnull(row[ALERT_THRESHOLD_PARAMETER]):
-                return 0
-            elif row[ALERT_THRESHOLD_PARAMETER] > threshold and self.lead_time not in [
+            if row[ALERT_THRESHOLD_PARAMETER] > threshold and self.lead_time not in [
                 "15-hour",
                 "18-hour",
                 "21-hour",
@@ -100,13 +102,26 @@ class DataUploader:
                 "48-hour",
             ]:
                 return 1
-            else:
+
+            elif row[ALERT_THRESHOLD_PARAMETER] > threshold and self.lead_time in [
+                "15-hour",
+                "18-hour",
+                "21-hour",
+                "24-hour",
+                "48-hour",
+            ]:
                 return 0
+            else:
+                return None
 
         ta_exposure_trigger["trigger_value"] = ta_exposure_trigger.apply(
             lambda row: determine_ta_trigger_state(row), axis=1
         )
-        
+
+        ta_exposure_trigger = ta_exposure_trigger.loc[
+            ~pd.isnull(ta_exposure_trigger["trigger_value"])
+        ]  # filter all that are not warning or trigger
+
         df_triggered_tas_blantyre = ta_exposure_trigger.loc[
             ta_exposure_trigger["placeCode"].isin(BLANTYRE_PLACECODES)
         ]
