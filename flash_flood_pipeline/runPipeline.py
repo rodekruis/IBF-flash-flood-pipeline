@@ -338,7 +338,7 @@ def historic_event_management(
         if "rumphi" in recent_historic_event_dataframe.columns and not all(
             [
                 pd.isnull(event)
-                for event in recent_historic_event_dataframe["karonga"].tolist()
+                for event in recent_historic_event_dataframe["rumphi"].tolist()
             ]
         ):
             rumphi_leadtime = 0
@@ -350,7 +350,7 @@ def historic_event_management(
         if "blantyre" in recent_historic_event_dataframe.columns and not all(
             [
                 pd.isnull(event)
-                for event in recent_historic_event_dataframe["karonga"].tolist()
+                for event in recent_historic_event_dataframe["blantyre"].tolist()
             ]
         ):
             blantyre_leadtime = 0
@@ -486,10 +486,8 @@ def main():
         blantyre_events,
     ) = scenarios_selector.select_scenarios()
 
-
     logger.info("step 2 finished: scenario selection")
-    # logger.info(str(datetime.datetime.now()))
-
+    
     karonga_trigger, rumphi_trigger, blantyre_trigger = determine_trigger_states(
         karonga_events=karonga_events,
         rumphi_events=rumphi_events,
@@ -570,7 +568,6 @@ def main():
             )
 
     # step (3a) - vector data: clip and stitch data of assets
-    # date = datetime.datetime.now()
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
@@ -602,7 +599,7 @@ def main():
             date=date,
         )
         portal_resetter.untrigger_portal()
-        print("untrigger portal")
+        logger.info("Untriggered portal")
 
     logger.info("Closing Events...")
 
@@ -614,7 +611,9 @@ def main():
             "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     )
-    gauge_data_uploader.send_notifications()
+    if ENVIRONMENT == "prod":
+        gauge_data_uploader.send_notifications()
+        
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
 
