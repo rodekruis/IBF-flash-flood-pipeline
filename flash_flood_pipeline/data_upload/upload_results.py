@@ -88,9 +88,7 @@ class DataUploader:
                     ALERT_THRESHOLD_VALUE
                     + THRESHOLD_CORRECTION_VALUES.get(row["placeCode"])
                 )
-                logger.info(
-                    f"Adjusting threshold for {row['placeCode']} from {ALERT_THRESHOLD_VALUE} to {threshold}"
-                )
+
             else:
                 threshold = ALERT_THRESHOLD_VALUE
 
@@ -136,6 +134,8 @@ class DataUploader:
             "Karonga": df_triggered_tas_karonga,
             "Rumphi": df_triggered_tas_rumphi,
         }
+        
+
         for distr_name, exposed_tas in event_mapping.items():
             if len(exposed_tas) > 0:
                 for key, value in EXPOSURE_TYPES.items():
@@ -158,6 +158,17 @@ class DataUploader:
                     body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
                     api_post_request("admin-area-dynamic-data/exposure", body=body)
 
+                for _, row in exposed_tas.iterrows():
+                    if row["trigger_value"] == 1:
+                        post_type = "trigger"
+                    elif row["trigger_value"] == 0:
+                        post_type = " warning"
+                    else:
+                        post_type = None
+                    logger.info(
+                        f"Posting: {distr_name} - leadtime = {self.lead_time} | {row['placeCode']} | {post_type}"
+                    )
+                                
                 body = TA_EXPOSURE_DICT
                 body["dynamicIndicator"] = "alert_threshold"
                 body["leadTime"] = self.lead_time

@@ -487,8 +487,7 @@ def main():
     ) = scenarios_selector.select_scenarios()
 
     logger.info("step 2 finished: scenario selection")
-    # logger.info(str(datetime.datetime.now()))
-
+    
     karonga_trigger, rumphi_trigger, blantyre_trigger = determine_trigger_states(
         karonga_events=karonga_events,
         rumphi_events=rumphi_events,
@@ -516,23 +515,6 @@ def main():
         blantyre_trigger,
         blantyre_events,
     )
-
-    karonga_events = {
-        "MW10104": "100mm_12hr",
-        "MW10106": "100mm_12hr",
-        "MW10203": "100mm_12hr",
-    }
-    karonga_trigger = True
-    karonga_leadtime = 9
-
-    blantyre_events = {
-        "MW31531": "50mm_1hr",
-        "MW31532": "50mm_1hr",
-        "MW31533": "50mm_1hr",
-        "MW31534": "50mm_1hr",
-    }
-    blantyre_trigger = True
-    blantyre_leadtime = 18
 
     region_trigger_metadata = pd.DataFrame(
         data={
@@ -586,7 +568,6 @@ def main():
             )
 
     # step (3a) - vector data: clip and stitch data of assets
-    # date = datetime.datetime.now()
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
@@ -630,7 +611,9 @@ def main():
             "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     )
-    gauge_data_uploader.send_notifications()
+    if ENVIRONMENT == "prod":
+        gauge_data_uploader.send_notifications()
+        
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
 
