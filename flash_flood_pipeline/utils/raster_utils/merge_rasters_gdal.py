@@ -11,7 +11,6 @@ def merge_rasters_gdal(output_path_raster, raster_paths):
     """
     # Open the input rasters
     # raster_paths+=["malawi_nodata.tif"]
-    print(raster_paths)
     gdal.BuildVRT("merged.vrt", raster_paths)
 
     original_pixsize = 1.358452567584323166e-05
