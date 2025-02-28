@@ -269,16 +269,6 @@ class DataUploader:
         # logger.info(exposed_buildings_body)
         api_post_request("lines-data/exposure-status", body=exposed_buildings_body)
 
-    def send_notifications(self):
-        """
-        Send notification email/whatsapp for all triggered areas by posting to notification/send endpoint
-        """
-        body = {
-            "countryCodeISO3": COUNTRY_CODE_ISO3,
-            "disasterType": DISASTER_TYPE,
-        }
-        api_post_request("notification/send", body=body)
-
     def upload_sensor_values(self):
         """
         upload sensor values to IBF system. Uses the point-data/dynamic endpoint to send:

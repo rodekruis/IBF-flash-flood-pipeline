@@ -603,16 +603,18 @@ def main():
 
     logger.info("Closing Events...")
 
+    if ENVIRONMENT == "prod":
+        api_path = "events/process" #default for noNotifications=false
+    else:
+        api_path = "events/process?noNotifications=true"
     api_post_request(
-        "event/close-events",
+        api_path,
         body={
             "countryCodeISO3": "MWI",
             "disasterType": "flash-floods",
             "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     )
-    if ENVIRONMENT == "prod":
-        gauge_data_uploader.send_notifications()
         
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
