@@ -74,7 +74,7 @@ class DataUploader:
         nr of affected schools, nr of affected clinics, nr of affected waterpoints, nr of affected buildings) for each TA by
         sending an API request (endpoint: admin-area-dynamic-data/exposure) and (2) triggering a TA when the value of the trigger
         exposure type is larger than the trigger threshold value (nr people affected >20), by sending an API-request (endpoint: admin-area-dynamic-data/exposure)
-        to the IBF-portal with the dynamic indicator "alert_threshold" = 1
+        to the IBF-portal
         """
         ta_exposure_trigger = self.TA_exposure.copy()
 
@@ -169,8 +169,23 @@ class DataUploader:
                         f"Posting: {distr_name} - leadtime = {self.lead_time} | {row['placeCode']} | {post_type}"
                     )
                                 
+                # forecast_severity: upload value=1 for all warned or triggered areas
                 body = TA_EXPOSURE_DICT
-                body["dynamicIndicator"] = "alert_threshold"
+                body["dynamicIndicator"] = "forecast_severity"
+                body["leadTime"] = self.lead_time
+                body["eventName"] = distr_name
+                body["exposurePlaceCodes"] = (
+                    exposed_tas[["placeCode"]]
+                    .assign(amount=1) # assuming this works, as non-warned/non-triggered areas are not part of this dict
+                    .dropna()
+                    .to_dict("records")
+                )
+                body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+                api_post_request("admin-area-dynamic-data/exposure", body=body)
+
+                # forecast_trigger
+                body = TA_EXPOSURE_DICT
+                body["dynamicIndicator"] = "forecast_trigger"
                 body["leadTime"] = self.lead_time
                 body["eventName"] = distr_name
                 body["exposurePlaceCodes"] = (
@@ -254,16 +269,6 @@ class DataUploader:
         # logger.info(exposed_buildings_body)
         api_post_request("lines-data/exposure-status", body=exposed_buildings_body)
 
-    def send_notifications(self):
-        """
-        Send notification email/whatsapp for all triggered areas by posting to notification/send endpoint
-        """
-        body = {
-            "countryCodeISO3": COUNTRY_CODE_ISO3,
-            "disasterType": DISASTER_TYPE,
-        }
-        api_post_request("notification/send", body=body)
-
     def upload_sensor_values(self):
         """
         upload sensor values to IBF system. Uses the point-data/dynamic endpoint to send:
@@ -313,9 +318,21 @@ class DataUploader:
 
         api_post_request("admin-area-dynamic-data/exposure", body=body)
 
-        #############
+        # upload 'forecast_severity' with value 0 for all TA's
         body = TA_EXPOSURE_DICT
-        body["dynamicIndicator"] = "alert_threshold"
+        body["dynamicIndicator"] = "forecast_severity"
+        body["exposurePlaceCodes"] = (
+            untrigger_ta[["placeCode", "amount"]].dropna().to_dict("records")
+        )
+        body["leadTime"] = "1-hour"
+        body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        body["eventName"] = None
+
+        api_post_request("admin-area-dynamic-data/exposure", body=body)
+        
+        # upload 'forecast_trigger' with value 0 for all TA's
+        body = TA_EXPOSURE_DICT
+        body["dynamicIndicator"] = "forecast_trigger"
         body["exposurePlaceCodes"] = (
             untrigger_ta[["placeCode", "amount"]].dropna().to_dict("records")
         )
