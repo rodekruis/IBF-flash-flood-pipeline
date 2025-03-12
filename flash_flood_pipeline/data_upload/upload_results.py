@@ -235,6 +235,7 @@ class DataUploader:
                     "dynamicPointData": [
                         {"fid": int(fid), "value": True} for fid in exposed_fids
                     ],
+                    "date": self.date.strftime(format="%Y-%m-%dT%H:%M:%S.%fZ"),
                 }
                 api_post_request("point-data/dynamic", body=dynamic_post_body)
 
@@ -253,6 +254,7 @@ class DataUploader:
         exposed_roads_body["exposedFids"] = exposed_roads
         exposed_roads_body["linesDataCategory"] = "roads"
         exposed_roads_body["leadTime"] = self.lead_time
+        exposed_roads_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         # logger.info(exposed_roads_body)
         api_post_request("lines-data/exposure-status", body=exposed_roads_body)
 
@@ -266,6 +268,7 @@ class DataUploader:
         exposed_buildings_body["exposedFids"] = exposed_buildings
         exposed_buildings_body["linesDataCategory"] = "buildings"
         exposed_buildings_body["leadTime"] = self.lead_time
+        exposed_buildings_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         # logger.info(exposed_buildings_body)
         api_post_request("lines-data/exposure-status", body=exposed_buildings_body)
 
