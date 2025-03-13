@@ -437,7 +437,7 @@ def main():
     blantyre_rainfall_sensor_data = process_blantyre_rainfall_sensor_data()
 
     blantyre_raingauge_data_idw = blantyre_raingauge_idw(
-        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data
+        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data, single_gauge_distance_threshold=3000, triple_gauge_distance_threshold=6000
     )
 
     if len(blantyre_raingauge_data_idw) > 0:
