@@ -77,10 +77,7 @@ class scenarioSelector:
             upstream_tas = UPSTREAM_MAP[key]
             dfs = []
             for ta in upstream_tas:
-                rainfall_df = gfs_data[ta]
-                rainfall_df = rainfall_df.mask(rainfall_df < 0).dropna()
-                rainfall_df = rainfall_df[~rainfall_df.index.duplicated(keep='first')]
-                dfs.append(rainfall_df)
+                dfs.append(gfs_data[ta])
 
             averages = (
                 pd.concat([each.stack() for each in dfs], axis=1)
