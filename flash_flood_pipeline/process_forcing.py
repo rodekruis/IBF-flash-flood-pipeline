@@ -188,39 +188,3 @@ class ForcingProcessor:
         }
 
         return forcing_combined_dict
-
-
-if __name__ == "__main__":
-    ta_gdf = gpd.read_file(
-        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\dev\regions.gpkg"
-    )
-
-    fp = ForcingProcessor(ta_gdf=ta_gdf)
-    fp.retrieve_forecast()
-
-    # # else:
-    # forcing_gap_start = last_gpm_timestep.to_pydatetime() + gpm_interval
-    # forcing_gap_end = datetime.datetime.combine(
-    #     fp.cosmo_date_to_use, datetime.time(hour=0, minute=0, second=0)
-    # )
-    # # try to get cosmo for datagap
-
-    # cosmo_path_data_gap = Path(
-    #     r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(
-    #         forcing_gap_start.strftime("%Y%m%d")
-    #     )
-    # )
-
-    # # if cosmo_path_data_gap.exists():
-    # #     logger.info("Filling gap between GPM and prediction with COSMO")
-    # #     cosmo_data = process_cosmo(ta_gdf=ta_gdf, cosmo_path=cosmo_path_data_gap)
-    # #     print(forcing_gap_start, forcing_gap_end)
-    # #     cosmo_data_gap = cosmo_data.loc[
-    # #         (cosmo_data.index >= forcing_gap_start)
-    # #         & (cosmo_data.index <= forcing_gap_end)
-    # #     ]
-    # # else:
-    # gfs_data = GfsDownload(ta_gdf=ta_gdf, date=forcing_gap_start)
-    # xr_gfs_forecast = gfs_data.retrieve()
-    # gfs_forecast_timeseries = gfs_data.sample(dataset=xr_gfs_forecast)
-    # print(gfs_forecast_timeseries)

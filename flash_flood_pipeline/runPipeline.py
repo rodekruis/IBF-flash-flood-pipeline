@@ -437,7 +437,7 @@ def main():
     blantyre_rainfall_sensor_data = process_blantyre_rainfall_sensor_data()
 
     blantyre_raingauge_data_idw = blantyre_raingauge_idw(
-        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data
+        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data, single_gauge_distance_threshold=3000, triple_gauge_distance_threshold=6000
     )
 
     if len(blantyre_raingauge_data_idw) > 0:
@@ -487,7 +487,7 @@ def main():
     ) = scenarios_selector.select_scenarios()
 
     logger.info("step 2 finished: scenario selection")
-    
+
     karonga_trigger, rumphi_trigger, blantyre_trigger = determine_trigger_states(
         karonga_events=karonga_events,
         rumphi_events=rumphi_events,
@@ -604,7 +604,8 @@ def main():
     logger.info("Closing Events...")
 
     if ENVIRONMENT == "prod":
-        api_path = "events/process" #default for noNotifications=false
+        api_path = "events/process"  # default for noNotifications=false
+
     else:
         api_path = "events/process?noNotifications=true"
     api_post_request(
@@ -615,7 +616,7 @@ def main():
             "date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
     )
-        
+
     elapsedTime = str(time.time() - startTime)
     logger.info(str(elapsedTime))
 

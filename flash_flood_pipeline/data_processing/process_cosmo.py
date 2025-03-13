@@ -67,4 +67,9 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         individual_timeseries.append(values_renamed)
         
     cosmo_df = pd.concat(individual_timeseries, axis=1)
+    
+    # catch negative value errors and duplicate indices
+    cosmo_df = cosmo_df.mask(cosmo_df < 0)
+    cosmo_df = cosmo_df.fillna(0)
+    cosmo_df = cosmo_df.groupby("datetime").max()
     return cosmo_df

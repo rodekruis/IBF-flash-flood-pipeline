@@ -324,6 +324,7 @@ class DataUploader:
         # upload 'forecast_severity' with value 0 for all TA's
         body = TA_EXPOSURE_DICT
         body["dynamicIndicator"] = "forecast_severity"
+
         body["exposurePlaceCodes"] = (
             untrigger_ta[["placeCode", "amount"]].dropna().to_dict("records")
         )
