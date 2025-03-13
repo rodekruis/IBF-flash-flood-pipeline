@@ -178,16 +178,3 @@ def blantyre_raingauge_idw(
 
     idw_timeseries_combined = pd.concat(idw_ts_collection, axis=1)
     return idw_timeseries_combined
-
-
-
-if __name__ == "__main__":
-    ta_gdf = gpd.read_file(
-        r"d:\VSCode\IBF-flash-flood-pipeline\data\static_data\dev\regions.gpkg"
-    )
-    sensor_data_df = pd.read_csv(
-        r"d:\VSCode\IBF-flash-flood-pipeline\data\dev\debug_output\blantyre_sensors_ts_2025-01-24_14.csv"
-    )
-
-    df = blantyre_raingauge_idw(ta_gdf, sensor_data_df)
-    print(df)

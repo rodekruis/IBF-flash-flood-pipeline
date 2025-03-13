@@ -73,14 +73,3 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
     cosmo_df = cosmo_df.fillna(0)
     cosmo_df = cosmo_df.groupby("datetime").max()
     return cosmo_df
-
-if __name__ == "__main__":
-    cosmo_path = Path(r"c:\Users\923265\Downloads\COSMO_MLW_20250311T00_prec.nc")
-    
-    import geopandas as gpd
-    
-    ta_gdf = gpd.read_file(r"d:\VSCode\IBF-flash-flood-pipeline\data\input_data\100mm_48hr\region_statistics.gpkg")
-    cosmo_df = process_cosmo(ta_gdf, cosmo_path)
-    cosmo_df_filtered = cosmo_df.loc[cosmo_df.index.day == 11]
-    
-    print(cosmo_df_filtered)
