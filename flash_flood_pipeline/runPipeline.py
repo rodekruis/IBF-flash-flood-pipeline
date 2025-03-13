@@ -605,6 +605,7 @@ def main():
 
     if ENVIRONMENT == "prod":
         api_path = "events/process"  # default for noNotifications=false
+
     else:
         api_path = "events/process?noNotifications=true"
     api_post_request(
