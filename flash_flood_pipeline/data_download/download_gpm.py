@@ -233,34 +233,3 @@ class GpmDownload:
         output_path = Path(r"data/gpm/gpm_rolling_week.nc")
         da.to_netcdf(output_path)
         return output_path
-
-
-if __name__ == "__main__":
-    download_path = Path(r"c:\Users\923265\Downloads\GPM\raw")
-
-    datetime_today = datetime.now()
-
-    gpm_download = GpmDownload(download_path=download_path)
-
-    gpm_download.get_catalogs()
-    urls = gpm_download.get_urls()
-    # print(urls)
-    gpm_download.download_hdf(urls=urls)
-    is_valid, nc_start_date, nc_end_date = gpm_download.validate_hdf()
-
-    print(is_valid, nc_start_date, nc_end_date)
-
-    gpm_download.process_data()
-
-    # cat = get_catalog(date)
-
-    # url = rf"https://gpm2.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGHHL.07/{date.strftime('%Y')}/{date.strftime('%j')}/catalog.xml"
-    # print(url)
-
-    # ds = nc.Dataset(gpm_retrieval_url)
-
-    # imerg_bounds = (cosmo_bounds[0] + 180, cosmo_bounds[1] + 90, cosmo_bounds[2] + 180, cosmo_bounds[3] + 90)
-    # print(gpm_retrieval_url)
-
-    # ds = nc.Dataset(gpm_retrieval_url)
-    # p
