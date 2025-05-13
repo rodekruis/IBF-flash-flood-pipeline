@@ -2,10 +2,10 @@ geopandas==0.14.4
 rasterio==1.3.10
 requests
 pygeos==0.14
-netCDF4==1.6.2
+netCDF4==1.7.2
 xarray==2024.10.0
 rioxarray==0.17.0
-h5py==3.12.1
+h5py==3.13.1
 rasterstats==0.20.0
 xvec==0.3.1
 numpy==1.26.4
