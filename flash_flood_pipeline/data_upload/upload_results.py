@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 class DataUploader:
     def __init__(
         self,
+        token,
         time,
         regions,
         district_name,
@@ -67,6 +68,7 @@ class DataUploader:
         self.sensor_reference_values_dict = sensor_reference_values_dict
         self.sensor_actual_values_dict = sensor_actual_values_dict
         self.sensor_previous_values_dict = sensor_previous_values_dict
+        self.token = token
 
     def upload_and_trigger_tas(self):
         """
@@ -134,7 +136,6 @@ class DataUploader:
             "Karonga": df_triggered_tas_karonga,
             "Rumphi": df_triggered_tas_rumphi,
         }
-        
 
         for distr_name, exposed_tas in event_mapping.items():
             if len(exposed_tas) > 0:
@@ -156,7 +157,11 @@ class DataUploader:
                         .to_dict("records")
                     )
                     body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    api_post_request("admin-area-dynamic-data/exposure", body=body)
+                    api_post_request(
+                        token=self.token,
+                        path="admin-area-dynamic-data/exposure",
+                        body=body,
+                    )
 
                 for _, row in exposed_tas.iterrows():
                     if row["trigger_value"] == 1:
@@ -168,7 +173,7 @@ class DataUploader:
                     logger.info(
                         f"Posting: {distr_name} - leadtime = {self.lead_time} | {row['placeCode']} | {post_type}"
                     )
-                                
+
                 # forecast_severity: upload value=1 for all warned or triggered areas
                 body = TA_EXPOSURE_DICT
                 body["dynamicIndicator"] = "forecast_severity"
@@ -176,12 +181,16 @@ class DataUploader:
                 body["eventName"] = distr_name
                 body["exposurePlaceCodes"] = (
                     exposed_tas[["placeCode"]]
-                    .assign(amount=1) # assuming this works, as non-warned/non-triggered areas are not part of this dict
+                    .assign(
+                        amount=1
+                    )  # assuming this works, as non-warned/non-triggered areas are not part of this dict
                     .dropna()
                     .to_dict("records")
                 )
                 body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                api_post_request("admin-area-dynamic-data/exposure", body=body)
+                api_post_request(
+                    token=self.token, path="admin-area-dynamic-data/exposure", body=body
+                )
 
                 # forecast_trigger
                 body = TA_EXPOSURE_DICT
@@ -195,7 +204,9 @@ class DataUploader:
                     .to_dict("records")
                 )
                 body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                api_post_request("admin-area-dynamic-data/exposure", body=body)
+                api_post_request(
+                    token=self.token, path="admin-area-dynamic-data/exposure", body=body
+                )
 
     def expose_point_assets(self):
         """
@@ -237,7 +248,9 @@ class DataUploader:
                     ],
                     "date": self.date.strftime(format="%Y-%m-%dT%H:%M:%S.%fZ"),
                 }
-                api_post_request("point-data/dynamic", body=dynamic_post_body)
+                api_post_request(
+                    token=self.token, path="point-data/dynamic", body=dynamic_post_body
+                )
 
     def expose_geoserver_assets(self):
         """
@@ -256,7 +269,9 @@ class DataUploader:
         exposed_roads_body["leadTime"] = self.lead_time
         exposed_roads_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         # logger.info(exposed_roads_body)
-        api_post_request("lines-data/exposure-status", body=exposed_roads_body)
+        api_post_request(
+            token=self.token, path="lines-data/exposure-status", body=exposed_roads_body
+        )
 
         exposed_buildings = list(
             self.buildings_exposure.loc[
@@ -270,7 +285,11 @@ class DataUploader:
         exposed_buildings_body["leadTime"] = self.lead_time
         exposed_buildings_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         # logger.info(exposed_buildings_body)
-        api_post_request("lines-data/exposure-status", body=exposed_buildings_body)
+        api_post_request(
+            token=self.token,
+            path="lines-data/exposure-status",
+            body=exposed_buildings_body,
+        )
 
     def upload_sensor_values(self):
         """
@@ -298,7 +317,9 @@ class DataUploader:
                 "pointDataCategory": "gauges",
                 "dynamicPointData": values_list,
             }
-            api_post_request("point-data/dynamic", body=sensor_dynamic_body)
+            api_post_request(
+                token=self.token, path="point-data/dynamic", body=sensor_dynamic_body
+            )
 
     def untrigger_portal(self):
         """
@@ -319,7 +340,9 @@ class DataUploader:
         body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         body["eventName"] = None
 
-        api_post_request("admin-area-dynamic-data/exposure", body=body)
+        api_post_request(
+            token=self.token, path="admin-area-dynamic-data/exposure", body=body
+        )
 
         # upload 'forecast_severity' with value 0 for all TA's
         body = TA_EXPOSURE_DICT
@@ -332,8 +355,10 @@ class DataUploader:
         body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         body["eventName"] = None
 
-        api_post_request("admin-area-dynamic-data/exposure", body=body)
-        
+        api_post_request(
+            token=self.token, path="admin-area-dynamic-data/exposure", body=body
+        )
+
         # upload 'forecast_trigger' with value 0 for all TA's
         body = TA_EXPOSURE_DICT
         body["dynamicIndicator"] = "forecast_trigger"
@@ -344,4 +369,6 @@ class DataUploader:
         body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
         body["eventName"] = None
 
-        api_post_request("admin-area-dynamic-data/exposure", body=body)
+        api_post_request(
+            token=self.token, path="admin-area-dynamic-data/exposure", body=body
+        )

@@ -24,7 +24,7 @@ def api_authenticate():
     return login_response.json()["user"]["token"]
 
 
-def api_post_request(path, body=None, files=None):
+def api_post_request(token, path, body=None, files=None):
     """
     Post function which will authenticate with the IBF API first and then makes a requests
 
@@ -33,16 +33,14 @@ def api_post_request(path, body=None, files=None):
         body (Dict): api post body (dictionary)
         files (bitestring): string of bytes to transfer a binary file to the portal
     """
-    TOKEN = api_authenticate()
-
     if body is not None:
         headers = {
-            "Authorization": "Bearer " + TOKEN,
+            "Authorization": "Bearer " + token,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
     elif files is not None:
-        headers = {"Authorization": "Bearer " + TOKEN}
+        headers = {"Authorization": "Bearer " + token}
 
     r = requests.post(API_SERVICE_URL + path, json=body, files=files, headers=headers)
     if r.status_code >= 400:
