@@ -5,7 +5,7 @@ pygeos==0.14
 netCDF4==1.7.2
 xarray==2024.10.0
 rioxarray==0.17.0
-h5py==3.13.1
+h5py==3.13.0
 rasterstats==0.20.0
 xvec==0.3.1
 numpy==1.26.4
