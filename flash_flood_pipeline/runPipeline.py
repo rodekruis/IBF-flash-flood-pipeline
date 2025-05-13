@@ -266,17 +266,27 @@ def combine_events_and_upload_to_ibf(
 
 
 def historic_event_management(
-    karonga_leadtime,
-    karonga_trigger,
-    karonga_events,
-    rumphi_leadtime,
-    rumphi_trigger,
-    rumphi_events,
-    blantyre_leadtime,
-    blantyre_trigger,
-    blantyre_events,
+    karonga_leadtime: int,
+    karonga_trigger: bool,
+    karonga_events: dict,
+    rumphi_leadtime: int,
+    rumphi_trigger: bool,
+    rumphi_events: dict,
+    blantyre_leadtime: int,
+    blantyre_trigger: bool,
+    blantyre_events: dict,
 ):
+    """Manages historic events. Ongoing events (leadtime=0) are added to a json database. When the database contains an event
 
+    Args:
+        n: the number to get the square root of.
+    Returns:
+        the square root of n.
+    Raises:
+        TypeError: if n is not a number.
+        ValueError: if n is negative.
+
+    """
     leadtime_0_library_path = Path(rf"data/{ENVIRONMENT}/events/leadtime_0_events.json")
 
     if leadtime_0_library_path.exists():
