@@ -26,7 +26,7 @@ from data_upload.raster_uploader import RasterUploader
 from utils.raster_utils.clip_rasters_on_ta import clip_rasters_on_ta
 from utils.raster_utils.merge_rasters_gdal import merge_rasters_gdal
 from utils.vector_utils.combine_vector_data import combine_vector_data
-from utils.api import api_post_request
+from utils.api import api_post_request, api_authenticate
 from process_forcing import ForcingProcessor
 from scenario_selection.scenario_selector import scenarioSelector
 import pandas as pd
@@ -155,6 +155,7 @@ def determine_trigger_states(
 
 
 def combine_events_and_upload_to_ibf(
+    token,
     ta_gdf,
     events,
     lead_time,
@@ -234,6 +235,7 @@ def combine_events_and_upload_to_ibf(
         "step 4 started: upload and trigger tas, expose point assets, expose geoserver assets, upload raster file waterdepth"
     )
     data_uploader = DataUploader(
+        token=token,
         time=str(lead_time) + "-hour",
         regions=vector_datasets["region_statistics"],
         district_name=districtname,
@@ -253,7 +255,8 @@ def combine_events_and_upload_to_ibf(
         raster_uploader = RasterUploader(
             raster_files=[
                 f"data/{ENVIRONMENT}/flood_extents/flood_extent_{str(lead_time)}-hour_MWI.tif"
-            ]
+            ],
+            token=token
         )
         raster_uploader.upload_raster_file()
 
@@ -376,6 +379,7 @@ def historic_event_management(
 def main():
     """Run impact based forecasting pipeline for malawi early warning system."""
     configure_logger()
+    token = api_authenticate()
 
     startTime = time.time()
     logger.info(f"IBF-Pipeline start: {str(datetime.datetime.now())}")
@@ -437,7 +441,10 @@ def main():
     blantyre_rainfall_sensor_data = process_blantyre_rainfall_sensor_data()
 
     blantyre_raingauge_data_idw = blantyre_raingauge_idw(
-        ta_gdf=ta_gdf, sensor_data_df=blantyre_rainfall_sensor_data, single_gauge_distance_threshold=3000, triple_gauge_distance_threshold=6000
+        ta_gdf=ta_gdf,
+        sensor_data_df=blantyre_rainfall_sensor_data,
+        single_gauge_distance_threshold=3000,
+        triple_gauge_distance_threshold=6000,
     )
 
     if len(blantyre_raingauge_data_idw) > 0:
@@ -549,6 +556,7 @@ def main():
                     skip_depth_map_upload = False
 
                 _, additional_raster_paths = combine_events_and_upload_to_ibf(
+                    token=token,
                     ta_gdf=ta_gdf,
                     events=row["events"],
                     lead_time=int(row["lead_time"]),
@@ -560,6 +568,7 @@ def main():
                 raster_path_collection.extend(additional_raster_paths)
         else:
             combine_events_and_upload_to_ibf(
+                token=token,
                 ta_gdf=ta_gdf,
                 events=triggered_regions_leadtime_filter["events"].iloc[0],
                 lead_time=int(triggered_regions_leadtime_filter["lead_time"].iloc[0]),
@@ -571,6 +580,7 @@ def main():
 
     # upload gauge data
     gauge_data_uploader = DataUploader(
+        token=token,
         time=None,
         regions=ta_gdf,
         district_name=None,
@@ -588,6 +598,7 @@ def main():
 
     if not karonga_trigger and not rumphi_trigger and not blantyre_trigger:
         portal_resetter = DataUploader(
+            token=token,
             time=None,
             regions=ta_gdf,
             district_name=None,
@@ -609,7 +620,8 @@ def main():
     else:
         api_path = "events/process?noNotifications=true"
     api_post_request(
-        api_path,
+        token=token,
+        path=api_path,
         body={
             "countryCodeISO3": "MWI",
             "disasterType": "flash-floods",

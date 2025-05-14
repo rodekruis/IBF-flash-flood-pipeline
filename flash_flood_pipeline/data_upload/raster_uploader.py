@@ -10,8 +10,9 @@ class RasterUploader:
     Class to upload raster file to ibf API.
     """
 
-    def __init__(self, raster_files):
+    def __init__(self, raster_files, token):
         self.raster_files = raster_files
+        self.token = token
 
     def upload_raster_file(self):
         """
@@ -20,7 +21,9 @@ class RasterUploader:
         for raster_file in self.raster_files:
             files = {"file": open(raster_file, "rb")}
             api_post_request(
-                "admin-area-dynamic-data/raster/" + DISASTER_TYPE, files=files
+                token=self.token,
+                path="admin-area-dynamic-data/raster/" + DISASTER_TYPE,
+                files=files,
             )
             logger.info(f"Uploaded raster-file: {raster_file}")
             # Path(raster_file).unlink()
