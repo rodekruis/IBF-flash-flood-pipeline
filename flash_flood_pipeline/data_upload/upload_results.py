@@ -240,7 +240,8 @@ class DataUploader:
             if exposed_fids:
                 dynamic_post_body = {
                     "pointDataCategory": point_data_category,
-                    "disasterType": "flash-floods",
+                    "disasterType": DISASTER_TYPE,
+                    "countryCodeISO3": COUNTRY_CODE_ISO3,
                     "leadTime": self.lead_time,
                     "key": "exposure",
                     "dynamicPointData": [
@@ -265,6 +266,8 @@ class DataUploader:
         exposed_roads = [str(int(x)) for x in exposed_roads]
         exposed_roads_body = GEOSERVER_EXPOSURE_DICT
         exposed_roads_body["exposedFids"] = exposed_roads
+        exposed_roads_body["countryCodeISO3"] = COUNTRY_CODE_ISO3
+        exposed_roads_body["disasterType"] = DISASTER_TYPE
         exposed_roads_body["linesDataCategory"] = "roads"
         exposed_roads_body["leadTime"] = self.lead_time
         exposed_roads_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -281,6 +284,8 @@ class DataUploader:
         exposed_buildings = [str(int(x)) for x in exposed_buildings]
         exposed_buildings_body = GEOSERVER_EXPOSURE_DICT
         exposed_buildings_body["exposedFids"] = exposed_buildings
+        exposed_buildings_body["countryCodeISO3"] = COUNTRY_CODE_ISO3
+        exposed_buildings_body["disasterType"] = DISASTER_TYPE
         exposed_buildings_body["linesDataCategory"] = "buildings"
         exposed_buildings_body["leadTime"] = self.lead_time
         exposed_buildings_body["date"] = self.date.strftime("%Y-%m-%dT%H:%M:%SZ")
