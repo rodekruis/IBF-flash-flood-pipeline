@@ -32,7 +32,15 @@ class ForcingProcessor:
         self.cosmo_folder = Path(r"data/cosmo/")
 
     @property
-    def most_recent_cosmo_date(self):
+    def most_recent_cosmo_date(self) -> datetime.datetime:
+        """
+        Get the most recent COSMO data date from the COSMO folder.
+
+        Args:
+            None
+        Returns:
+            datetime.datetime: most recent COSMO data date.
+        """
         latest_cosmo_date = max(
             [
                 datetime.datetime.strptime(
@@ -44,14 +52,16 @@ class ForcingProcessor:
         return latest_cosmo_date
 
     @property
-    def cosmo_prediction_found(self):
+    def cosmo_prediction_found(self) -> bool:
         """
         Check if eligible COSMO data is available.
 
-        Criteria:
-        - COSMO from same day OR
-        - COSMO from previous day if COSMO from same day is not available AND run starts before 07:00 AM UTC
+        Args:
+            None
+        Returns:
+            bool: COSMO data is available for the current date or the previous day before 07:00 UTC
         """
+
         if self.most_recent_cosmo_date.date() == self.current_date_utc.date():
             return True
         elif (
@@ -68,9 +78,14 @@ class ForcingProcessor:
             return False
 
     @property
-    def cosmo_date_to_use(self):
-        """
-        COSMO is available around 06:00 AM UTC. If a run kicks of before that, use COSMO from the previous day
+    def cosmo_date_to_use(self) -> datetime.datetime:
+        """COSMO is available around 06:00 AM UTC. If a run kicks of before that, use COSMO from the previous day
+        Args:
+            None
+        Returns:
+            datetime.datetime: The date of which to retrieve COSMO data.
+        Raises:
+            CosmoNotFound: If no eligible COSMO data is found.
         """
         if self.most_recent_cosmo_date.date() == self.current_date_utc.date():
             return self.current_date_utc.replace(
@@ -91,7 +106,14 @@ class ForcingProcessor:
         else:
             raise CosmoNotFound("No eligible COSMO-data found")
 
-    def retrieve_forecast(self):
+    def retrieve_forecast(self) -> pd.DataFrame:
+        """Retrieves forcing prediction data based on preferred provider availability.
+        Args:
+            None
+        Returns:
+            forcing_forecast (pd.DataFrame): DataFrame containing the forcing data for the forecast period.
+        """
+
         if self.cosmo_prediction_found:
             logger.info("Eligible COSMO-data found.")
 
@@ -115,7 +137,13 @@ class ForcingProcessor:
             forcing_forecast["src"] = "GFS"
         return forcing_forecast
 
-    def construct_forcing_timeseries(self):
+    def construct_forcing_timeseries(self) -> dict:
+        """Compiles a forcing timeseries from prediction data (GFS/COSMO) and GPM. Fills gaps with COSMO or GFS data when needed.
+        Args:
+            None
+        Returns:
+            forcing_combined_dict (dictionary): Dictionary containing forcing dataframe for each TA.
+        """
         gpm_archive_df = update_gpm_archive(ta_gdf=self.ta_gdf)
 
         gpm_archive_df.to_csv(rf"data/{ENVIRONMENT}/debug_output/gpm_archive.csv")

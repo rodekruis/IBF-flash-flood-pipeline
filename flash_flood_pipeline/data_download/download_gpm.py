@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_catalog(date):
-    catalog_location = f"https://gpm2.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGHHL.07/{date.strftime('%Y')}/{date.strftime('%j')}/catalog.xml"
+    catalog_location = f"https://gpm2.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGHHE.07/{date.strftime('%Y')}/{date.strftime('%j')}/catalog.xml"
     catalog_raw = requests.get(catalog_location)
     if catalog_raw.status_code == 200:
         catalog = ET.fromstring(catalog_raw.text)
@@ -44,7 +44,13 @@ class GpmDownload:
         self.t0 = t0
         self.archive_start_date = self.t0 - timedelta(days=ensure_available_days)
 
-    def get_catalogs(self):
+    def get_catalogs(self) -> dict:
+        """get metadata catalogs per day for the GPM HDF5 files, to retrieve download URLs from
+        Args:
+            None
+        Returns:
+            dict: containing date keys and catalogs as values.
+        """
         self.catalogs = {}
         for date in pd.date_range(start=self.archive_start_date, end=self.t0, freq="d"):
             self.catalogs[date.strftime("%Y%m%d")] = get_catalog(date)
@@ -53,7 +59,13 @@ class GpmDownload:
 
         return self.catalogs
 
-    def get_urls(self):
+    def get_urls(self) -> dict:
+        """Get download urls for GPM HDF5 files from the catalogs.
+        Args:
+            None
+        Returns:
+            dict: containing date keys and lists of URLs as values.
+        """
         self.url_dict = {}
         for key, catalog in self.catalogs.items():
             if key not in self.missing_days:
@@ -73,8 +85,13 @@ class GpmDownload:
                 self.url_dict[key] = None
         return self.url_dict
 
-    def gpm_request(self, download_meta: tuple):
-        """download_meta: (url, filename)"""
+    def gpm_request(self, download_meta: tuple) -> tuple:
+        """Helper function to parallel download GPM HDF5 files.
+        Args:
+            download_meta (tuple): containing filename and URL.
+        Returns:
+            tuple: (success, url) where success is a boolean indicating if the download was successful.
+        """
         raw = requests.get(self.base_url + download_meta[1])
 
         if raw.status_code == 200:
@@ -85,7 +102,12 @@ class GpmDownload:
         else:
             return (False, download_meta[1])
 
-    def download_hdf(self, urls):
+    def download_hdf(self, urls: dict) -> None:
+        """Downloads GPM HDF5 files from the provided URLs.
+        Args:
+            urls: dictionary with date keys and lists of URLs as values.
+        Returns:
+        """
         self.filenames = []
 
         download_meta_tuples = []
@@ -109,7 +131,15 @@ class GpmDownload:
             else:
                 failed_paths.append(path)
 
-    def validate_hdf(self):
+    def validate_hdf(self) -> tuple:
+        """Validates HDF5 downloads to check for temporal gaps
+        Args:
+            None
+        Returns:
+            bool: no_gap_bool: indicating whether data gaps have been found
+            pd.Timestamp: hdf5_dates[0]: first hdf5 date
+            pd.Timestamp:"hdf5_dates[-1]: last hdf5 date
+        """
         start_date = datetime.combine(
             self.archive_start_date.date(), time(hour=0, minute=0, second=0)
         )
@@ -159,7 +189,13 @@ class GpmDownload:
 
         return no_gap_bool, hdf5_dates[0], hdf5_dates[-1]
 
-    def process_data(self):
+    def process_data(self) -> Path:
+        """Resamples and reprojects GPM data to a workable NetCDF format.
+        Args:
+            None
+        Returns:
+            Path to the processed NetCDF file.
+        """
         lonbounds = (self.malawi_bounds[0], self.malawi_bounds[2])
         latbounds = (self.malawi_bounds[1], self.malawi_bounds[3])
 

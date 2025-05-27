@@ -276,16 +276,17 @@ def historic_event_management(
     blantyre_trigger: bool,
     blantyre_events: dict,
 ):
-    """Manages historic events. Ongoing events (leadtime=0) are added to a json database. When the database contains an event
+    """Manages historic events. Takes events based on current weather prediction. Ongoing events (leadtime=0) are added to a json database.
+    Then, the json database is loaded up to 5 days in the past to check for ongoing events. In this time extent, the earliest, not the most severe, event is selected.
 
     Args:
-        n: the number to get the square root of.
+        [region]_leadtime
+        [region]_trigger
+        [region]_events
     Returns:
-        the square root of n.
-    Raises:
-        TypeError: if n is not a number.
-        ValueError: if n is negative.
-
+        [region]_leadtime (updated based on possible ongoing event)
+        [region]_trigger (updated based on possible ongoing event)
+        [region]_events (updated based on possible ongoing event)
     """
     leadtime_0_library_path = Path(rf"data/{ENVIRONMENT}/events/leadtime_0_events.json")
 
