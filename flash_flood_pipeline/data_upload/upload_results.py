@@ -234,7 +234,7 @@ class DataUploader:
 
         for point_data_category, exposed_fids in {
             "schools": exposed_schools,
-            "waterpoints_internal": exposed_waterpoints,
+            "waterpoints": exposed_waterpoints,
             "health_sites": exposed_healthsites,
         }.items():
             if exposed_fids:
