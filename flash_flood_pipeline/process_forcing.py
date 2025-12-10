@@ -3,6 +3,7 @@ from pathlib import Path
 import datetime
 from data_processing.process_cosmo import process_cosmo
 from data_processing.process_gpm import update_gpm_archive
+from data_processing.validate_cosmo import validate_cosmo
 from data_download.download_gfs import GfsDownload
 import logging
 import rioxarray
@@ -91,28 +92,39 @@ class ForcingProcessor:
         else:
             raise CosmoNotFound("No eligible COSMO-data found")
 
+    def retrieve_cosmo(self, cosmo_path):
+        forcing_forecast = process_cosmo(ta_gdf=self.ta_gdf, cosmo_path=cosmo_path)
+        forcing_forecast["src"] = "COSMO"
+        return forcing_forecast
+
+    def retrieve_gfs(self):
+        gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=self.current_date_utc)
+        xr_gfs_forecast = gfs_data.retrieve()
+
+        xr_gfs_forecast.to_netcdf(
+            rf"data\{ENVIRONMENT}\debug_output\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc"
+        )
+        forcing_forecast = gfs_data.sample(dataset=xr_gfs_forecast)
+        forcing_forecast["src"] = "GFS"
+        return forcing_forecast
+
     def retrieve_forecast(self):
         if self.cosmo_prediction_found:
             logger.info("Eligible COSMO-data found.")
-
             cosmo_path = Path(
                 r"data/cosmo/COSMO_MLW_{}T00_prec.nc".format(
                     self.cosmo_date_to_use.strftime("%Y%m%d")
                 )
             )
-            forcing_forecast = process_cosmo(ta_gdf=self.ta_gdf, cosmo_path=cosmo_path)
-            forcing_forecast["src"] = "COSMO"
+            if validate_cosmo(cosmo_path):
+                forcing_forecast = self.retrieve_cosmo(cosmo_path)
+            else:
+                logger.info("COSMO-data present but invalid, switching to GFS.")
+                forcing_forecast = self.retrieve_gfs()
         else:
             logger.info("Eligible COSMO-data not found, switching to GFS.")
+            forcing_forecast = self.retrieve_gfs()
 
-            gfs_data = GfsDownload(ta_gdf=self.ta_gdf, date=self.current_date_utc)
-            xr_gfs_forecast = gfs_data.retrieve()
-
-            xr_gfs_forecast.to_netcdf(
-                rf"data\{ENVIRONMENT}\debug_output\gfs_{self.current_date_utc.strftime('%Y%m%d-%H')}.nc"
-            )
-            forcing_forecast = gfs_data.sample(dataset=xr_gfs_forecast)
-            forcing_forecast["src"] = "GFS"
         return forcing_forecast
 
     def construct_forcing_timeseries(self):
