@@ -17,12 +17,12 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
 
     cosmo_data = {}
     logger.info(f"Opening {cosmo_path}")
-    
+
     xr_dataset = xr.open_dataset(cosmo_path)
     xr_dataset = xr_dataset.rio.set_spatial_dims("rlat", "rlon")
     xr_dataset = xr_dataset.rename({"rlat": "y", "rlon": "x"})
     xds = xr_dataset.rio.write_crs("epsg:4326")
-    
+
     upscale_factor = 8
 
     new_width = xds.rio.width * upscale_factor
@@ -32,12 +32,11 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         shape=(new_height, new_width),
         resampling=Resampling.bilinear,
     )
-    
+
     datetime_list_forecast = [
-        pd.Timestamp(x).to_pydatetime()
-        for x in xds_upsampled_forecast.time.data[:]
-    ]  
-    
+        pd.Timestamp(x).to_pydatetime() for x in xds_upsampled_forecast.time.data[:]
+    ]
+
     for _, row in ta_gdf_4326.iterrows():
         xds_clipped = xds_upsampled_forecast.rio.clip(
             [row["geometry"]], ta_gdf_4326.crs
@@ -65,9 +64,9 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         values_renamed = timeseries.rename(columns={"precipitation": col_name})
         values_renamed = values_renamed.set_index("datetime")
         individual_timeseries.append(values_renamed)
-        
+
     cosmo_df = pd.concat(individual_timeseries, axis=1)
-    
+
     # catch negative value errors and duplicate indices
     cosmo_df = cosmo_df.mask(cosmo_df < 0)
     cosmo_df = cosmo_df.fillna(0)
