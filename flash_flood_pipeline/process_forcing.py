@@ -116,7 +116,11 @@ class ForcingProcessor:
                     self.cosmo_date_to_use.strftime("%Y%m%d")
                 )
             )
-            if validate_cosmo(cosmo_path):
+            cosmo_is_valid = validate_cosmo(cosmo_path)
+            
+            logger.info(f"COSMO Validity: {cosmo_is_valid}")
+
+            if cosmo_is_valid:
                 forcing_forecast = self.retrieve_cosmo(cosmo_path)
             else:
                 logger.info("COSMO-data present but invalid, switching to GFS.")
