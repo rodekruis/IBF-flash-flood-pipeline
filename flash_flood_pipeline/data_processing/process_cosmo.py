@@ -33,10 +33,14 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
         resampling=Resampling.bilinear,
     )
 
-    datetime_list_forecast = [pd.Timestamp(x).to_pydatetime() for x in xds_upsampled_forecast.time.data[:]]
+    datetime_list_forecast = [
+        pd.Timestamp(x).to_pydatetime() for x in xds_upsampled_forecast.time.data[:]
+    ]
 
     for _, row in ta_gdf_4326.iterrows():
-        xds_clipped = xds_upsampled_forecast.rio.clip([row["geometry"]], ta_gdf_4326.crs)
+        xds_clipped = xds_upsampled_forecast.rio.clip(
+            [row["geometry"]], ta_gdf_4326.crs
+        )
         xds_data_array = xds_clipped["tp"]
         xds_data_array.data[xds_data_array.data > 1000] = np.nan
         cum_mean_rain_ts = [np.nanmean(x) for x in xds_data_array.data]
@@ -51,7 +55,9 @@ def process_cosmo(ta_gdf, cosmo_path: Path):
                 "precipitation": mean_rain_ts,
             }
         )
-        cosmo_data[row["placeCode"]] = cosmo_data[row["placeCode"]].sort_values("datetime", ascending=True)
+        cosmo_data[row["placeCode"]] = cosmo_data[row["placeCode"]].sort_values(
+            "datetime", ascending=True
+        )
     individual_timeseries = []
 
     for col_name, timeseries in cosmo_data.items():
