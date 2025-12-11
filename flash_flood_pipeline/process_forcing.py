@@ -160,8 +160,9 @@ class ForcingProcessor:
                     forcing_gap_start.strftime("%Y%m%d")
                 )
             )
+            cosmo_data_gap_is_valid = validate_cosmo(cosmo_path_data_gap)
 
-            if cosmo_path_data_gap.exists():
+            if cosmo_path_data_gap.exists() and cosmo_data_gap_is_valid:
                 logger.info("Filling gap between GPM and prediction with COSMO")
                 cosmo_data = process_cosmo(
                     ta_gdf=self.ta_gdf, cosmo_path=cosmo_path_data_gap

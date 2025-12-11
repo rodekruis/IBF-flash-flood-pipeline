@@ -1,8 +1,9 @@
 from pathlib import Path
+import os
 
 # references
 DATA_FOLDER = Path("data/input_data")
-ENVIRONMENT = "prod"  # can be prod or dev
+ENVIRONMENT = os.environ["ENVIRONMENT"]  # can be prod or dev
 
 # general
 ASSET_TYPES = [
