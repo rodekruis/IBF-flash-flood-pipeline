@@ -168,58 +168,61 @@ class GpmDownload:
         xr_datasets = []
 
         for filename in self.filenames:
-            dataset = h5py.File(os.path.join(self.download_path, filename), "r")
+            try:
+                dataset = h5py.File(os.path.join(self.download_path, filename), "r")
 
-            lats = dataset["Grid"]["lat"][:]
-            lons = dataset["Grid"]["lon"][:]
+                lats = dataset["Grid"]["lat"][:]
+                lons = dataset["Grid"]["lon"][:]
 
-            timestamp = datetime.strptime(
-                str(dataset["Grid"]["time"].attrs["Units"]),
-                "b'seconds since %Y-%m-%d %H:%M:%S UTC'",
-            ) + timedelta(seconds=int(dataset["Grid"]["time"][0]))
+                timestamp = datetime.strptime(
+                    str(dataset["Grid"]["time"].attrs["Units"]),
+                    "b'seconds since %Y-%m-%d %H:%M:%S UTC'",
+                ) + timedelta(seconds=int(dataset["Grid"]["time"][0]))
 
-            self.timestamps.append(timestamp)
+                self.timestamps.append(timestamp)
 
-            precipitation_all = dataset["Grid"]["precipitation"][0, :, :]
-            lat_index = [
-                index
-                for index, value in enumerate(lats)
-                if (value > latbounds[0]) & (value < latbounds[1])
-            ]
+                precipitation_all = dataset["Grid"]["precipitation"][0, :, :]
+                lat_index = [
+                    index
+                    for index, value in enumerate(lats)
+                    if (value > latbounds[0]) & (value < latbounds[1])
+                ]
 
-            lon_index = [
-                index
-                for index, value in enumerate(lons)
-                if (value > lonbounds[0]) & (value < lonbounds[1])
-            ]
+                lon_index = [
+                    index
+                    for index, value in enumerate(lons)
+                    if (value > lonbounds[0]) & (value < lonbounds[1])
+                ]
 
-            lat_index = [lat_index[0], lat_index[-1]]
-            lon_index = [lon_index[0], lon_index[-1]]
+                lat_index = [lat_index[0], lat_index[-1]]
+                lon_index = [lon_index[0], lon_index[-1]]
 
-            precip = precipitation_all[
-                lon_index[0] : lon_index[1] + 1, lat_index[0] : lat_index[1] + 1
-            ]
+                precip = precipitation_all[
+                    lon_index[0] : lon_index[1] + 1, lat_index[0] : lat_index[1] + 1
+                ]
 
-            rev = range(len(precip[0, :]) - 1, -1, -1)
-            precip = precip.transpose()[rev, :]
+                rev = range(len(precip[0, :]) - 1, -1, -1)
+                precip = precip.transpose()[rev, :]
 
-            with rasterio.Env(GDAL_PAM_ENABLED=False):
-                with rasterio.io.MemoryFile() as memfile:
-                    with memfile.open(
-                        driver="GTiff",
-                        width=(lonbounds[1] - lonbounds[0]) * 10,
-                        height=(latbounds[1] - latbounds[0]) * 10,
-                        count=1,
-                        dtype=precip.dtype,
-                        crs="EPSG:4326",
-                        transform=rasterio.transform.from_origin(
-                            lonbounds[0], latbounds[1], 0.1, 0.1
-                        ),
-                        nodata=-1,
-                    ) as dst:
-                        dst.write(precip, 1)
+                with rasterio.Env(GDAL_PAM_ENABLED=False):
+                    with rasterio.io.MemoryFile() as memfile:
+                        with memfile.open(
+                            driver="GTiff",
+                            width=(lonbounds[1] - lonbounds[0]) * 10,
+                            height=(latbounds[1] - latbounds[0]) * 10,
+                            count=1,
+                            dtype=precip.dtype,
+                            crs="EPSG:4326",
+                            transform=rasterio.transform.from_origin(
+                                lonbounds[0], latbounds[1], 0.1, 0.1
+                            ),
+                            nodata=-1,
+                        ) as dst:
+                            dst.write(precip, 1)
 
-                    xr_datasets.append(rioxarray.open_rasterio(memfile))
+                        xr_datasets.append(rioxarray.open_rasterio(memfile))
+            except Exception as e:
+                logger.warning(f"Skipping {filename} due to Exception: {e}")
 
         time = xr.Variable("time", self.timestamps)
 
