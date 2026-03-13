@@ -142,17 +142,16 @@ class GfsDownload:
     def retrieve(self):
         logger.info("GfsDownload - Retrieving GFS-precipitation data")
 
-        nc_dataset_forecast = nc.Dataset(
-            "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
-                self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
-            )
-        )
-        # surface total precipitation [kg/m^2]
-
-        xr_dataset = convert_to_xr(
-            ds=nc_dataset_forecast,
+        urls = formulate_gfs_urls(
             bbox=self.malawi_bbox,
-            parameter_to_obtain=self.gfs_parameter_to_obtain,
+            forecast_start=self.forecast_start,
+            forecast_start_hour=self.forecast_start_hour
+        )
+        downloaded_files = request_gfs_data(urls)
+        xr_dataset = xr.open_mfdataset(
+            downloaded_files, 
+            combine="by_coords", 
+            engine="cfgrib"
         )
 
         upscale_factor = 8
