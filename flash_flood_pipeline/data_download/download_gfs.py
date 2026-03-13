@@ -3,6 +3,8 @@ import sys
 sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 
 from datetime import datetime, timedelta
+import time
+import requests
 import numpy as np
 import pandas as pd
 import netCDF4 as nc
@@ -44,6 +46,67 @@ def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
 
     return xr_dataset
 
+def formulate_gfs_urls(
+        bbox: tuple[float, float, float, float], 
+        forecast_start: datetime, 
+        forecast_start_hour: str
+    ) -> list[str]:
+    west, south, east, north = bbox
+    forecast_start = forecast_start.strftime("%Y%m%d")
+    var_ACPCP = "on"
+    lev_surface = "on"
+
+    base_url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
+    dir = f"%2Fgfs.{forecast_start}%2F{forecast_start_hour}%2Fatmos"
+    subregion = f"&toplat={north}&leftlon={west}&rightlon={east}&bottomlat={south}"
+    
+    urls = []
+    time_step_end = 49
+    for h in range(0, time_step_end, 1):  # from 0 to time_step_end, every 1 hour
+        file = f"gfs.t{forecast_start_hour}z.pgrb2.0p25.f{h:03d}"
+        url = fr"{base_url}?dir={dir}&file={file}&var_ACPCP={var_ACPCP}&lev_surface={lev_surface}&subregion={subregion}"
+        urls.append(url)
+
+    return urls
+
+def download_url_with_retries(
+        url: str, 
+        max_attempts: int = 5, 
+        retry_interval: int = 5) -> str | None:
+
+    attempt = 1
+    while attempt <= max_attempts:
+        try:
+            r = requests.get(url)
+            r.raise_for_status()
+            local_file = f"gfs_{attempt}_{int(time.time())}.grb2"
+            with open(local_file, "wb") as f:
+                f.write(r.content)
+            return local_file
+        except Exception as e:
+            logger.warning(f"Attempt {attempt}: Failed to retrieve data from {url}: {e}")
+            if attempt < max_attempts:
+                time.sleep(retry_interval)
+            attempt += 1
+    logger.warning(f"All retries failed for {url}. Moving to next URL.")
+    return None
+
+def request_gfs_data(urls: list[str]) -> list[str]:
+
+    failed_urls = []
+    successful_files = []
+    for url in urls:
+        local_file = download_url_with_retries(url)
+        if local_file:
+            successful_files.append(local_file)
+        else:
+            failed_urls.append(url)
+    if failed_urls:
+        sorted_failed_url = sorted(failed_urls)
+        logger.warning(f"Failed URLs: {sorted_failed_url}")
+    if successful_files:
+        logger.info(f"Successfully downloaded files: {successful_files}")
+    return sorted(successful_files)
 
 class GfsDownload:
     def __init__(self, ta_gdf, date):
