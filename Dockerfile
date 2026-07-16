@@ -3,7 +3,7 @@ FROM python:3.10.4
 
 RUN apt-get update
 
-RUN apt-get install -y libgdal-dev
+RUN apt-get install -y libgdal-dev libeccodes-dev
 
 RUN pip install GDAL==3.2.2.1
 WORKDIR /code

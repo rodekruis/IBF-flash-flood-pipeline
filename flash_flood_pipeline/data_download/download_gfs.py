@@ -12,6 +12,8 @@ from pathlib import Path
 import xarray as xr
 import rioxarray
 import xvec
+from uuid import uuid4
+import cfgrib
 from rasterio.enums import Resampling
 from utils.general_utils.round_to_nearest_hour import (
     round_to_nearest_hour,
@@ -79,7 +81,7 @@ def download_url_with_retries(
         try:
             r = requests.get(url)
             r.raise_for_status()
-            local_file = f"gfs_{attempt}_{int(time.time())}.grb2"
+            local_file = f"gfs_{attempt}_{int(time.time())}_{uuid4().hex[:8]}.grb2"
             with open(local_file, "wb") as f:
                 f.write(r.content)
             return local_file
