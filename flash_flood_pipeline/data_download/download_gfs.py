@@ -196,12 +196,57 @@ class GfsDownload:
             forecast_start_hour=self.forecast_start_hour
         )
         downloaded_files = request_gfs_data(urls)
-        xr_dataset = xr.open_mfdataset(
-            downloaded_files,
-            combine="by_coords",
-            engine="cfgrib",
-            chunks="auto"
-        )
+        
+        logger.info(f"Downloaded {len(downloaded_files)} files. Validating each file can be opened with cfgrib...")
+        
+        # Validate each file individually by attempting to open it
+        valid_files = []
+        for file in downloaded_files:
+            try:
+                # Try to open the file with cfgrib to ensure it's readable
+                test_ds = xr.open_dataset(file, engine="cfgrib")
+                test_ds.close()
+                valid_files.append(file)
+                logger.debug(f"File validation passed: {file}")
+            except Exception as e:
+                logger.warning(f"File validation failed for {file}: {e}. Removing from processing.")
+                Path(file).unlink(missing_ok=True)
+        
+        if not valid_files:
+            raise ValueError(
+                f"No valid GFS GRIB files could be opened. "
+                f"Downloaded {len(downloaded_files)} files but all failed validation."
+            )
+        
+        logger.info(f"Successfully validated {len(valid_files)} out of {len(downloaded_files)} downloaded files")
+        
+        # Try combining with by_coords first, fallback to nested if it fails
+        xr_dataset = None
+        try:
+            logger.debug(f"Attempting to combine {len(valid_files)} files using combine='by_coords'")
+            xr_dataset = xr.open_mfdataset(
+                valid_files,
+                combine="by_coords",
+                engine="cfgrib",
+                chunks="auto"
+            )
+            logger.info("Successfully combined files using combine='by_coords'")
+        except ValueError as e:
+            logger.warning(f"combine='by_coords' failed: {e}. Attempting fallback with combine='nested'")
+            try:
+                xr_dataset = xr.open_mfdataset(
+                    valid_files,
+                    combine="nested",
+                    engine="cfgrib",
+                    chunks="auto"
+                )
+                logger.info("Successfully combined files using fallback combine='nested'")
+            except Exception as e2:
+                logger.error(f"Fallback combine='nested' also failed: {e2}")
+                raise
+        
+        if xr_dataset is None:
+            raise ValueError("Failed to combine GFS files with any combination strategy")
 
         upscale_factor = 8
 
