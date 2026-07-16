@@ -197,8 +197,8 @@ class GfsDownload:
         )
         downloaded_files = request_gfs_data(urls)
         xr_dataset = xr.open_mfdataset(
-            downloaded_files, 
-            combine="by_coords", 
+            downloaded_files,
+            combine="by_coords",
             engine="cfgrib"
         )
 
