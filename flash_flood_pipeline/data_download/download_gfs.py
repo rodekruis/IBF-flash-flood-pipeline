@@ -28,6 +28,39 @@ warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
 
+def validate_grib_file(filepath: str, min_file_size: int = 1000) -> bool:
+    """
+    Validate that a downloaded file is a valid GRIB file.
+    
+    Args:
+        filepath: Path to the GRIB file to validate
+        min_file_size: Minimum acceptable file size in bytes
+    
+    Returns:
+        True if file is valid GRIB, False otherwise
+    """
+    file_path = Path(filepath)
+    
+    # Check if file exists and has minimum size
+    if not file_path.exists():
+        logger.warning(f"File does not exist: {filepath}")
+        return False
+    
+    if file_path.stat().st_size < min_file_size:
+        logger.warning(f"File too small ({file_path.stat().st_size} bytes): {filepath}")
+        return False
+    
+    # Try to read GRIB header using cfgrib
+    try:
+        with open(filepath, "rb") as f:
+            cfgrib.messages.FileStream(f)
+        logger.debug(f"GRIB validation passed for: {filepath}")
+        return True
+    except Exception as e:
+        logger.warning(f"GRIB validation failed for {filepath}: {e}")
+        return False
+
+
 def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
     xr_dataset = xr.open_dataset(xr.backends.NetCDF4DataStore(ds))
 
@@ -84,7 +117,20 @@ def download_url_with_retries(
             local_file = f"gfs_{attempt}_{int(time.time())}_{uuid4().hex[:8]}.grb2"
             with open(local_file, "wb") as f:
                 f.write(r.content)
-            return local_file
+            
+            # Validate GRIB file before returning
+            if validate_grib_file(local_file):
+                logger.info(f"Successfully downloaded and validated: {local_file}")
+                return local_file
+            else:
+                # File is invalid, delete it and retry
+                Path(local_file).unlink(missing_ok=True)
+                logger.warning(f"Downloaded file failed validation, retrying...")
+                if attempt < max_attempts:
+                    time.sleep(retry_interval)
+                attempt += 1
+                continue
+                
         except Exception as e:
             logger.warning(f"Attempt {attempt}: Failed to retrieve data from {url}: {e}")
             if attempt < max_attempts:
