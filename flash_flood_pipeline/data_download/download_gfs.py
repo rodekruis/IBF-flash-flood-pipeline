@@ -199,7 +199,8 @@ class GfsDownload:
         xr_dataset = xr.open_mfdataset(
             downloaded_files,
             combine="by_coords",
-            engine="cfgrib"
+            engine="cfgrib",
+            chunks="auto"
         )
 
         upscale_factor = 8

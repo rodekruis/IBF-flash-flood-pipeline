@@ -4,6 +4,7 @@ requests
 pygeos==0.14
 netCDF4==1.7.2
 xarray==2024.10.0
+dask[array]==2024.10.0
 rioxarray==0.17.0
 h5py==3.13.0
 rasterstats==0.20.0
