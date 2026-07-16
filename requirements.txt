@@ -9,3 +9,5 @@ h5py==3.13.0
 rasterstats==0.20.0
 xvec==0.3.1
 numpy==1.26.4
+cfgrib==0.9.14.1
+eccodes==2.43.0
