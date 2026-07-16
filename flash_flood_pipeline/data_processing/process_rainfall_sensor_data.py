@@ -12,6 +12,7 @@ from itertools import compress
 import logging
 from pathlib import Path
 import numpy as np
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +28,7 @@ def process_karonga_rainfall_sensor_data(start_date):
     ]
 
     relevant_files = [x for x in datetime_list if x > rain_start_date]
-    logger.info(f"Karonga relevant files: {relevant_files}")
+
     if relevant_files:
         rain_files = list(compress(sensor_filtered_list, relevant_files))
         rain_timeseries = []
@@ -63,8 +64,16 @@ def process_blantyre_rainfall_sensor_data():
             dataframe_entry_list = []
 
             for gauge_file in gauge_files:
+                logger.info(f"Blantyre Gauge Reading - opening {gauge_file}")
                 with open(gauge_file, "r") as src:
-                    f = json.load(src)
+                    try:
+                        f = json.load(src)
+                    except Exception as e:
+                        logger.error(
+                            f"System failure when opening {gauge_file} - Exception: {e}"
+                        )
+                        raise ValueError
+
                     rainfall_data = [
                         data_entry for data_entry in f["data"] if "Rain" in data_entry
                     ]
@@ -118,7 +127,13 @@ def apply_idw(ta_centroid, ta_name, gauge_locations_gdf, gauge_timeseries, p=2):
     }
 
     idw_gauge_timeseries[f"{ta_name}"] = idw_gauge_timeseries.apply(
-        lambda row: np.sum([row[g] * idw_weight_mapping.get(g.split("_rain")[0]) for g in row.index if g != "index"]),
+        lambda row: np.sum(
+            [
+                row[g] * idw_weight_mapping.get(g.split("_rain")[0])
+                for g in row.index
+                if g != "index"
+            ]
+        ),
         axis=1,
     )
     ta_timeseries_idw = idw_gauge_timeseries[[f"{ta_name}"]].copy()
@@ -173,7 +188,7 @@ def blantyre_raingauge_idw(
             gauge_locations_gdf=blantyre_gauge_locations,
             gauge_timeseries=sensor_data_df,
         )
-        
+
         idw_ts_collection.append(idw_ts)
 
     idw_timeseries_combined = pd.concat(idw_ts_collection, axis=1)
