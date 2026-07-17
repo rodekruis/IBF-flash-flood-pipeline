@@ -28,13 +28,26 @@ warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
 
-def validate_grib_file(filepath: str, min_file_size: int = 1000) -> bool:
+CFGRIB_BACKEND_KWARGS = {
+    "indexpath": "",
+    "filter_by_keys": {"stepType": "accum"},
+}
+
+
+def validate_grib_file(
+    filepath: str,
+    min_file_size: int = 1000,
+    require_cfgrib_open: bool = False,
+    backend_kwargs: dict | None = None,
+) -> bool:
     """
     Validate that a downloaded file is a valid GRIB file.
     
     Args:
         filepath: Path to the GRIB file to validate
         min_file_size: Minimum acceptable file size in bytes
+        require_cfgrib_open: Whether the file must also be readable by xarray/cfgrib
+        backend_kwargs: Optional cfgrib backend kwargs used when require_cfgrib_open is True
     
     Returns:
         True if file is valid GRIB, False otherwise
@@ -50,14 +63,30 @@ def validate_grib_file(filepath: str, min_file_size: int = 1000) -> bool:
         logger.warning(f"File too small ({file_path.stat().st_size} bytes): {filepath}")
         return False
     
-    # Try to read GRIB header using cfgrib
+    # First do a lightweight GRIB header sanity check.
     try:
         with open(filepath, "rb") as f:
             cfgrib.messages.FileStream(f)
-        logger.debug(f"GRIB validation passed for: {filepath}")
-        return True
     except Exception as e:
         logger.warning(f"GRIB validation failed for {filepath}: {e}")
+        return False
+
+    if not require_cfgrib_open:
+        logger.debug(f"GRIB header validation passed for: {filepath}")
+        return True
+
+    # Use the same cfgrib settings as the final multi-file load to catch incompatible files early.
+    try:
+        test_ds = xr.open_dataset(
+            filepath,
+            engine="cfgrib",
+            backend_kwargs=backend_kwargs,
+        )
+        test_ds.close()
+        logger.debug(f"GRIB open validation passed for: {filepath}")
+        return True
+    except Exception as e:
+        logger.warning(f"GRIB open validation failed for {filepath}: {e}")
         return False
 
 
@@ -197,19 +226,19 @@ class GfsDownload:
         )
         downloaded_files = request_gfs_data(urls)
         
-        logger.info(f"Downloaded {len(downloaded_files)} files. Validating each file can be opened with cfgrib...")
-        
-        # Validate each file individually by attempting to open it
+        logger.info(
+            f"Downloaded {len(downloaded_files)} files. Validating each file with cfgrib before combining..."
+        )
+
         valid_files = []
         for file in downloaded_files:
-            try:
-                # Try to open the file with cfgrib to ensure it's readable
-                test_ds = xr.open_dataset(file, engine="cfgrib")
-                test_ds.close()
+            if validate_grib_file(
+                file,
+                require_cfgrib_open=True,
+                backend_kwargs=CFGRIB_BACKEND_KWARGS,
+            ):
                 valid_files.append(file)
-                logger.debug(f"File validation passed: {file}")
-            except Exception as e:
-                logger.warning(f"File validation failed for {file}: {e}. Removing from processing.")
+            else:
                 Path(file).unlink(missing_ok=True)
         
         if not valid_files:
@@ -220,33 +249,18 @@ class GfsDownload:
         
         logger.info(f"Successfully validated {len(valid_files)} out of {len(downloaded_files)} downloaded files")
         
-        # Try combining with by_coords first, fallback to nested if it fails
-        xr_dataset = None
-        try:
-            logger.debug(f"Attempting to combine {len(valid_files)} files using combine='by_coords'")
-            xr_dataset = xr.open_mfdataset(
-                valid_files,
-                combine="by_coords",
-                engine="cfgrib",
-                chunks="auto"
-            )
-            logger.info("Successfully combined files using combine='by_coords'")
-        except ValueError as e:
-            logger.warning(f"combine='by_coords' failed: {e}. Attempting fallback with combine='nested'")
-            try:
-                xr_dataset = xr.open_mfdataset(
-                    valid_files,
-                    combine="nested",
-                    engine="cfgrib",
-                    chunks="auto"
-                )
-                logger.info("Successfully combined files using fallback combine='nested'")
-            except Exception as e2:
-                logger.error(f"Fallback combine='nested' also failed: {e2}")
-                raise
-        
-        if xr_dataset is None:
-            raise ValueError("Failed to combine GFS files with any combination strategy")
+        logger.info(
+            "Loading GFS files with xarray.open_mfdataset using combine='nested' and cfgrib accum-step filtering"
+        )
+        xr_dataset = xr.open_mfdataset(
+            valid_files,
+            combine="nested",
+            engine="cfgrib",
+            backend_kwargs=CFGRIB_BACKEND_KWARGS,
+            coords="minimal",
+            compat="override",
+            chunks="auto",
+        )
 
         upscale_factor = 8
 
