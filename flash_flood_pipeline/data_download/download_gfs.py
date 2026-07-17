@@ -262,6 +262,9 @@ class GfsDownload:
             chunks="auto",
         )
 
+        # Set CRS for GFS data (WGS84)
+        xr_dataset = xr_dataset.rio.write_crs("EPSG:4326")
+
         upscale_factor = 8
 
         new_width = xr_dataset.rio.width * upscale_factor
