@@ -3,8 +3,6 @@ import sys
 sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 
 from datetime import datetime, timedelta
-import time
-import requests
 import numpy as np
 import pandas as pd
 import netCDF4 as nc
@@ -219,10 +217,10 @@ class GfsDownload:
     def retrieve(self):
         logger.info("GfsDownload - Retrieving GFS-precipitation data")
 
-        urls = formulate_gfs_urls(
-            bbox=self.malawi_bbox,
-            forecast_start=self.forecast_start,
-            forecast_start_hour=self.forecast_start_hour
+        nc_dataset_forecast = nc.Dataset(
+            "https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs{}/gfs_0p25_{}z".format(
+                self.forecast_start.strftime("%Y%m%d"), self.forecast_start_hour
+            )
         )
         downloaded_files = request_gfs_data(urls)
         
