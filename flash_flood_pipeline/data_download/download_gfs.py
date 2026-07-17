@@ -90,7 +90,7 @@ def validate_grib_file(
         return False
 
 
-def convert_to_xr(ds, bbox=None, parameter_to_obtain="apcpsfc"):
+def convert_to_xr(ds, bbox=None, parameter_to_obtain="acpcp"):
     xr_dataset = xr.open_dataset(xr.backends.NetCDF4DataStore(ds))
 
     xr_dataset = xr_dataset.rio.set_spatial_dims("lat", "lon")
@@ -195,7 +195,7 @@ class GfsDownload:
         )
         self.ta_shapes = ta_gdf
         self.date = date
-        self.gfs_parameter_to_obtain = "apcpsfc"
+        self.gfs_parameter_to_obtain = "acpcp"
 
     @property
     def forecast_start(self):
