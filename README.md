@@ -30,3 +30,23 @@ pip install poetry
 poetry install --no-interaction
 ```
 3. run the pipeline with `python flash_flood_pipeline/runPipeline.py`
+
+Another way to run locally is to set up in an isolated Docker image
+1. fill in the secrets in `credentials.py`
+2. download a local copy of data from Azure File Share:
+```
+data/
+  input_data/
+  static_data/dev/regions.gpkg
+  dev/
+```
+3. Build image from the `Dockerfile`
+`docker build -t ibf-flash-flood-pipeline . `
+4. Run the image with data mounted:
+```
+$dataPath = (Resolve-Path .\data).Path
+docker run --rm -it `
+  --env-file .env `
+  --mount "type=bind,source=$dataPath,target=/code/data" `
+  ibf-flash-flood-pipeline:latest
+```
