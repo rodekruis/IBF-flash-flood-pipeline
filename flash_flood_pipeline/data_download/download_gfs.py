@@ -219,7 +219,6 @@ class GfsDownload:
 
         urls = formulate_gfs_urls(
             bbox=self.malawi_bbox,
-            parameter_to_obtain=self.gfs_parameter_to_obtain,
             forecast_start=self.forecast_start,
             forecast_start_hour=self.forecast_start_hour
         )
