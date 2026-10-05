@@ -179,8 +179,6 @@ class GpmDownload:
                     "b'seconds since %Y-%m-%d %H:%M:%S UTC'",
                 ) + timedelta(seconds=int(dataset["Grid"]["time"][0]))
 
-                self.timestamps.append(timestamp)
-
                 precipitation_all = dataset["Grid"]["precipitation"][0, :, :]
                 lat_index = [
                     index
@@ -220,7 +218,8 @@ class GpmDownload:
                         ) as dst:
                             dst.write(precip, 1)
 
-                        xr_datasets.append(rioxarray.open_rasterio(memfile))
+                        xr_datasets.append(rioxarray.open_rasterio(memfile).load())
+                    self.timestamps.append(timestamp)
             except Exception as e:
                 logger.warning(f"Skipping {filename} due to Exception: {e}")
 
