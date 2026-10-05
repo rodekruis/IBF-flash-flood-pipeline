@@ -260,6 +260,7 @@ class GfsDownload:
             coords="minimal",
             compat="override",
             chunks="auto",
+            decode_timedelta=False,
         )
 
         # Set CRS for GFS data (WGS84)
