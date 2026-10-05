@@ -3,6 +3,8 @@ import sys
 sys.path.append(r"D:\VSCode\IBF-flash-flood-pipeline\flash_flood_pipeline")
 
 from datetime import datetime, timedelta
+import time
+import requests
 import numpy as np
 import pandas as pd
 import netCDF4 as nc
@@ -219,7 +221,6 @@ class GfsDownload:
 
         urls = formulate_gfs_urls(
             bbox=self.malawi_bbox,
-            parameter_to_obtain=self.gfs_parameter_to_obtain,
             forecast_start=self.forecast_start,
             forecast_start_hour=self.forecast_start_hour
         )
@@ -259,6 +260,7 @@ class GfsDownload:
             coords="minimal",
             compat="override",
             chunks="auto",
+            decode_timedelta=False,
         )
 
         # Set CRS for GFS data (WGS84)
