@@ -31,6 +31,9 @@ def event_mapping_24hr(number):
         number = 0
     else:
         number = min(rounded_number, PrecipitationSum.UPPER_VALUE_24HR_EVENT.value)
+        # Exclude value 175 given missing scenario 175 in the storage
+        if number == 175:
+            return 150
     return number
 
 
