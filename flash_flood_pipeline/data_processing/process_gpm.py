@@ -14,7 +14,6 @@ def update_gpm_archive(ta_gdf):
     download_path = Path(r"data/gpm/raw")
     gpm_download = GpmDownload(download_path=download_path)
 
-    gpm_download.get_catalogs()
     urls = gpm_download.get_urls()
 
     gpm_download.download_hdf(urls=urls)
