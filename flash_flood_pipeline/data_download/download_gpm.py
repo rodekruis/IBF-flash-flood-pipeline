@@ -60,10 +60,11 @@ class GpmDownload:
                 f.write(raw[1].getbuffer())
                 return (True, download_meta[1])
         except Exception as e:
-            logger.error("Exception while downloading from FTP: {e}")
+            logger.error(f"Failed to save GPM file {download_meta[0]}: {e}")
             return (False, download_meta[1])
 
     def download_hdf(self, urls):
+        self.download_path.mkdir(parents=True, exist_ok=True)
         self.filenames = []
 
         download_meta_tuples = []
@@ -91,13 +92,16 @@ class GpmDownload:
         )
 
         # clean
-        hdf5_paths = [p for p in self.download_path.glob("*.HDF5")]
+        hdf5_paths = [
+            p for p in self.download_path.glob("*")
+            if p.is_file() and p.suffix in (".HDF5", ".RT-H5")
+        ]
         hdf5_dates = [
             datetime.strptime(
                 f'{p.stem.split("IMERG.")[-1].split("-S")[0]} {p.stem.split("-S")[-1].split("-")[0]}',
                 "%Y%m%d %H%M%S",
             )
-            for p in self.download_path.glob("*.HDF5")
+            for p in hdf5_paths
         ]
 
         hdf5_index = {k: v for k, v in zip(hdf5_paths, hdf5_dates)}
@@ -107,16 +111,24 @@ class GpmDownload:
                 path.unlink()
 
         # reload
-        hdf5_paths = [p for p in self.download_path.glob("*.HDF5")]
-        self.filenames = [p.name for p in self.download_path.glob("*.HDF5")]
+        hdf5_paths = [p for p in hdf5_paths if p.exists()]
+        self.filenames = [p.name for p in hdf5_paths]
         hdf5_dates = [
             datetime.strptime(
                 f'{p.stem.split("IMERG.")[-1].split("-S")[0]} {p.stem.split("-S")[-1].split("-")[0]}',
                 "%Y%m%d %H%M%S",
             )
-            for p in self.download_path.glob("*.HDF5")
+            for p in hdf5_paths
         ]
 
+        if not hdf5_dates:
+            raise RuntimeError(
+                f"No GPM HDF5 files (.HDF5 or .RT-H5) on or after {start_date} remain in "
+                f"{self.download_path.resolve()}. Check FTP file availability, "
+                "download errors, and write permissions on the mounted data directory."
+            )
+
+        hdf5_dates.sort()
         expected_daterange = pd.date_range(
             start=start_date, end=hdf5_dates[-1], freq="30min"
         )
