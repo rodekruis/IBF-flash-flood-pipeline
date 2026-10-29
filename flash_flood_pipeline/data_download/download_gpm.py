@@ -10,18 +10,12 @@ from pathlib import Path
 import rioxarray
 from concurrent.futures import ThreadPoolExecutor
 import logging
+from .ftp import download_file, get_remote_filepaths_in_daterange
 
 logger = logging.getLogger(__name__)
 
-
-def get_catalog(date):
-    catalog_location = f"https://gpm2.gesdisc.eosdis.nasa.gov/opendap/hyrax/GPM_L3/GPM_3IMERGHHL.07/{date.strftime('%Y')}/{date.strftime('%j')}/catalog.xml"
-    catalog_raw = requests.get(catalog_location)
-    if catalog_raw.status_code == 200:
-        catalog = ET.fromstring(catalog_raw.text)
-    else:
-        catalog = None
-    return catalog
+FTP_HOST = "jsimpsonftps.pps.eosdis.nasa.gov"
+IMERG_LATE_FTP_DIR = "data/imerg/late"
 
 
 class GpmDownload:
@@ -31,7 +25,13 @@ class GpmDownload:
         t0: datetime = datetime.now(),
         ensure_available_days: int = 7,
     ):
-        self.base_url = "https://gpm2.gesdisc.eosdis.nasa.gov/"
+        self.ftp_user = os.getenv("FTP_USERNAME")
+
+        if self.ftp_user == None:
+            raise ValueError(
+                "Set a valid FTP_USERNAME for ftp-server jsimpsonftps.pps.eosdis.nasa.gov as env variable"
+            )
+        
         self.missing_days = []
         self.download_path = download_path
 
@@ -44,58 +44,35 @@ class GpmDownload:
         self.t0 = t0
         self.archive_start_date = self.t0 - timedelta(days=ensure_available_days)
 
-    def get_catalogs(self):
-        self.catalogs = {}
-        for date in pd.date_range(start=self.archive_start_date, end=self.t0, freq="d"):
-            self.catalogs[date.strftime("%Y%m%d")] = get_catalog(date)
-            if self.catalogs[date.strftime("%Y%m%d")] == None:
-                self.missing_days.append(date.strftime("%Y%m%d"))
-
-        return self.catalogs
-
     def get_urls(self):
-        self.url_dict = {}
-        for key, catalog in self.catalogs.items():
-            if key not in self.missing_days:
-                urls = []
-                dataset = catalog[3]
-                for child in dataset:
-                    if (
-                        child.attrib["ID"][
-                            len(child.attrib["ID"]) - 5 : len(child.attrib["ID"])
-                        ]
-                        == ".HDF5"
-                    ):
-                        url = child.attrib["ID"].replace("opendap/hyrax", "data")
-                        urls.append(url)
-                self.url_dict[key] = urls
-            else:
-                self.url_dict[key] = None
-        return self.url_dict
+        ftp_urls = get_remote_filepaths_in_daterange(
+            username=self.ftp_user, start_date=self.archive_start_date, end_date=self.t0
+        )
+        return ftp_urls
+
 
     def gpm_request(self, download_meta: tuple):
         """download_meta: (url, filename)"""
-        raw = requests.get(self.base_url + download_meta[1])
+        raw = download_file(host=FTP_HOST, username=self.ftp_user, remote_filepath=download_meta[1])
 
-        if raw.status_code == 200:
+        try:
             with open(self.download_path / download_meta[0], "wb") as f:
-                f.write(raw.content)
-
-            return (True, download_meta[1])
-        else:
+                f.write(raw[1].getbuffer())
+                return (True, download_meta[1])
+        except Exception as e:
+            logger.error(f"Failed to save GPM file {download_meta[0]}: {e}")
             return (False, download_meta[1])
 
     def download_hdf(self, urls):
+        self.download_path.mkdir(parents=True, exist_ok=True)
         self.filenames = []
 
         download_meta_tuples = []
 
-        for _, date_url_list in urls.items():
-            if date_url_list:
-                for url in date_url_list:
-                    filename = os.path.split(url)[1]
-                    if not (self.download_path / filename).exists():
-                        download_meta_tuples.append((filename, url))
+        for url in urls:
+            filename = os.path.split(url)[1]
+            if not (self.download_path / filename).exists():
+                download_meta_tuples.append((filename, url))
 
         with ThreadPoolExecutor(max_workers=5) as executor:
             output_paths = executor.map(self.gpm_request, download_meta_tuples)
@@ -115,13 +92,16 @@ class GpmDownload:
         )
 
         # clean
-        hdf5_paths = [p for p in self.download_path.glob("*.HDF5")]
+        hdf5_paths = [
+            p for p in self.download_path.glob("*")
+            if p.is_file() and p.suffix in (".HDF5", ".RT-H5")
+        ]
         hdf5_dates = [
             datetime.strptime(
                 f'{p.stem.split("IMERG.")[-1].split("-S")[0]} {p.stem.split("-S")[-1].split("-")[0]}',
                 "%Y%m%d %H%M%S",
             )
-            for p in self.download_path.glob("*.HDF5")
+            for p in hdf5_paths
         ]
 
         hdf5_index = {k: v for k, v in zip(hdf5_paths, hdf5_dates)}
@@ -131,16 +111,24 @@ class GpmDownload:
                 path.unlink()
 
         # reload
-        hdf5_paths = [p for p in self.download_path.glob("*.HDF5")]
-        self.filenames = [p.name for p in self.download_path.glob("*.HDF5")]
+        hdf5_paths = [p for p in hdf5_paths if p.exists()]
+        self.filenames = [p.name for p in hdf5_paths]
         hdf5_dates = [
             datetime.strptime(
                 f'{p.stem.split("IMERG.")[-1].split("-S")[0]} {p.stem.split("-S")[-1].split("-")[0]}',
                 "%Y%m%d %H%M%S",
             )
-            for p in self.download_path.glob("*.HDF5")
+            for p in hdf5_paths
         ]
 
+        if not hdf5_dates:
+            raise RuntimeError(
+                f"No GPM HDF5 files (.HDF5 or .RT-H5) on or after {start_date} remain in "
+                f"{self.download_path.resolve()}. Check FTP file availability, "
+                "download errors, and write permissions on the mounted data directory."
+            )
+
+        hdf5_dates.sort()
         expected_daterange = pd.date_range(
             start=start_date, end=hdf5_dates[-1], freq="30min"
         )
